@@ -16,6 +16,7 @@ import { PackHistoryModule } from "./modules/pack-history/pack-history.module";
 import { ProductsModule } from "./modules/products/products.module";
 import { QrSigningModule } from "./modules/qr-signing/qr-signing.module";
 import { TransfersModule } from "./modules/transfers/transfers.module";
+import { VerificationModule } from "./modules/verification/verification.module";
 import { PrismaModule } from "./prisma/prisma.module";
 
 const DEFAULT_RATE_LIMIT = { ttl: 60_000, limit: 120 };
@@ -37,6 +38,7 @@ const DEFAULT_RATE_LIMIT = { ttl: 60_000, limit: 120 };
     InventoryModule,
     TransfersModule,
     PackHistoryModule,
+    VerificationModule,
     HealthModule,
   ],
 })

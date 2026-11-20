@@ -228,12 +228,16 @@ https://<web-domain>/v/MED-2026-000123?k=k1&s=<signature>
 
 A real signature on a copied label still looks valid, so the scan history is used too:
 
-- Each scan is recorded with a coarse location and time.
-- The verify result is downgraded to **Warning** when a pack:
-  - is scanned in two far-apart cities within a short time,
-  - goes past a scan-count threshold,
-  - is scanned after it was marked `DISPENSED`, or
-  - is scanned while still in transit and not yet at a pharmacy.
+- Each genuine scan is recorded with time, city and country (from Vercel's geo headers, trusted only with the web app's shared secret) and a keyed hash of the IP. The IP itself is never stored.
+- The rules live in one pure function (`verification-rules.ts`), ordered by severity. A scan is a **Warning** when:
+  - the ID was typed instead of scanned (`CODE_NOT_SCANNED`): only the signed QR proves the label,
+  - the batch is recalled or expired,
+  - the pack's hash chain fails verification,
+  - the pack hasn't reached a pharmacy and wasn't dispensed (`NOT_AT_PHARMACY`): a patient shouldn't have it yet,
+  - it has more than 25 genuine scans (`MANY_SCANS`),
+  - it was scanned in two or more cities within 24 hours (`SCANNED_IN_MANY_PLACES`).
+- A forged signature is `NOT_RECOGNIZED`, logged against the pack if the ID exists, and reveals nothing about it. Forged attempts don't count towards the scan total.
+- The planned "scanned after dispensing" rule was dropped: patients scan after buying, so it would flag the normal case. Dispensing instead shows as the last step of the journey.
 - These are simple rules for now. The AI phase can replace them later.
 
 ### 6.4 Transfers are two-step
@@ -265,12 +269,13 @@ Rules enforced in the service layer and backed by database constraints:
 
 ### 6.6 Public verification endpoint
 
-`GET /verify/:packId?s=...` is the only public, unauthenticated data endpoint.
+`GET /verify/:packId?k=…&s=…` is the only public data endpoint (plus `GET /verify/keys`, the public signing keys).
 
-- Rate-limited per IP through Redis.
-- Returns a minimal, safe view: product, batch, expiry, recall status, verdict, storage instructions. It never returns the owner's identity or internal IDs.
-- Verdicts: `VERIFIED`, `WARNING` (with a plain-language reason), `NOT_RECOGNIZED`.
-- Batch-level results are cached in Redis for a short time. Scan recording is pushed to a queue so the response stays fast.
+- Rate-limited per IP: 30 requests a minute. Responses are `Cache-Control: no-store`.
+- Returns a minimal view: verdict with plain-language reasons, product, manufacturer, batch, expiry, recall status, storage instructions, and the journey as counts and dates (registered, handovers, reached a pharmacy, dispensed). It never names distributors or pharmacies, and never returns internal IDs.
+- The web page (`/v/[packId]`) renders on the server and forwards the visitor's IP and Vercel's geo headers, so the scan log and rate limit see the patient, not the web server.
+- Scans are written inline (one insert). The queue isn't worth the extra hop for this; it can move to a job if verification traffic grows.
+- Pharmacies mark packs `DISPENSED` (`POST /packs/:publicId/dispense`), which adds a `DISPENSED` ledger event.
 
 ---
 
@@ -433,6 +438,14 @@ A seed script creates a full demo world so visitors can try the app without sign
 - Production deployment: Vercel for web, Oracle VM with `deploy.sh` for the API
 
 Phase 1 rate limiting is in-memory, which is correct while one API container runs.
+
+## 17. Phase 4 deliverables
+
+- `Scan` model (keyed IP hash, city, country, verdict) and `DISPENSED` ledger event
+- Public `GET /verify/:packId` with signature check, warning rules, privacy-preserving scan log and per-IP rate limit; `GET /verify/keys`
+- Pharmacy dispensing with row lock, state checks, ledger event and audit entry
+- Web: public `/v/[packId]` result page (server-rendered, ~108 kB first load), `/verify` landing page with manual lookup, dispense action on the pack page, `DISPENSED` on the timeline
+- New secrets: `SCAN_HASH_SECRET` (API) and `WEB_PROXY_SECRET` (API and web)
 
 ## 16. Phase 3 deliverables
 

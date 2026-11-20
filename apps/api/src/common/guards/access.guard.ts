@@ -1,4 +1,11 @@
 import { type CanActivate, type ExecutionContext, Injectable } from "@nestjs/common";
+
+const ORG_TYPE_PLURALS = {
+  MANUFACTURER: "manufacturers",
+  DISTRIBUTOR: "distributors",
+  WHOLESALER: "wholesalers",
+  PHARMACY: "pharmacies",
+} as const;
 import { Reflector } from "@nestjs/core";
 import { type MembershipRole, type OrgType } from "@origo/shared";
 import {
@@ -41,7 +48,7 @@ export class AccessGuard implements CanActivate {
     if (needsApprovedOrg) this.assertApprovedOrg(principal);
     if (orgTypes && !orgTypes.includes(principal.membership?.orgType as OrgType)) {
       throw new ForbiddenActionException(
-        "This is only available to " + orgTypes.map((t) => t.toLowerCase() + "s").join(" and ") + ".",
+        `This is only available to ${orgTypes.map((type) => ORG_TYPE_PLURALS[type]).join(" and ")}.`,
       );
     }
     if (roles && !roles.includes(principal.membership?.role as MembershipRole)) {

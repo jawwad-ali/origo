@@ -81,6 +81,7 @@ export const LEDGER_EVENT_LABELS: Record<LedgerEventType, string> = {
   TRANSFER_RECEIVED: "Received",
   TRANSFER_REJECTED: "Returned (rejected)",
   TRANSFER_CANCELLED: "Returned (cancelled)",
+  DISPENSED: "Dispensed",
 };
 
 /**

@@ -99,6 +99,7 @@ export const ROLE_WORKFLOWS: Record<OrgType, WorkflowStep[]> = {
       title: "Dispense to patients",
       description: "Mark packs as dispensed when they leave the counter.",
       icon: Boxes,
+      href: ROUTES.inventory,
     },
     {
       title: "Act on recalls",

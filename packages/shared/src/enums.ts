@@ -43,8 +43,23 @@ export const LEDGER_EVENT_TYPES = [
   "TRANSFER_RECEIVED",
   "TRANSFER_REJECTED",
   "TRANSFER_CANCELLED",
+  "DISPENSED",
 ] as const;
 export type LedgerEventType = (typeof LEDGER_EVENT_TYPES)[number];
 
 export const TRANSFER_DIRECTIONS = ["incoming", "outgoing"] as const;
 export type TransferDirection = (typeof TRANSFER_DIRECTIONS)[number];
+
+export const VERIFICATION_VERDICTS = ["VERIFIED", "WARNING", "NOT_RECOGNIZED"] as const;
+export type VerificationVerdict = (typeof VERIFICATION_VERDICTS)[number];
+
+export const VERIFICATION_REASONS = [
+  "CODE_NOT_SCANNED",
+  "RECALLED",
+  "EXPIRED",
+  "NOT_AT_PHARMACY",
+  "MANY_SCANS",
+  "SCANNED_IN_MANY_PLACES",
+  "HISTORY_BROKEN",
+] as const;
+export type VerificationReason = (typeof VERIFICATION_REASONS)[number];

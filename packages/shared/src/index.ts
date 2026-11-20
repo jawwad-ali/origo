@@ -9,3 +9,4 @@ export * from "./schemas/transfer";
 export * from "./types/api";
 export * from "./types/catalog";
 export * from "./types/supply";
+export * from "./types/verification";

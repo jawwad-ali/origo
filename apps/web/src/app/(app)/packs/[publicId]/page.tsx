@@ -8,6 +8,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ExpiryDate, PackStatusBadge } from "@/features/catalog/components/catalog-badges";
 import { DetailList } from "@/features/catalog/components/detail-list";
+import { DispenseButton } from "@/features/supply/components/dispense-button";
 import { PackTimeline } from "@/features/supply/components/pack-timeline";
 import { ChainBadge } from "@/features/supply/components/supply-badges";
 import { getPackHistory } from "@/features/supply/services/supply.server";
@@ -24,10 +25,15 @@ export const generateMetadata = async ({ params }: PageProps): Promise<Metadata>
 });
 
 export default async function PackPage({ params }: PageProps) {
-  await requireMember();
+  const user = await requireMember();
   const { publicId } = await params;
   const pack = await orNotFound(getPackHistory(decodeURIComponent(publicId)));
   const { batch } = pack;
+  const canDispense =
+    user.membership?.organization.type === "PHARMACY" &&
+    user.membership.organization.id === pack.currentOwner.id &&
+    pack.status === "IN_STOCK" &&
+    batch.status === "ACTIVE";
 
   return (
     <PageContainer>
@@ -42,7 +48,12 @@ export default async function PackPage({ params }: PageProps) {
         <PageHeader
           title={pack.publicId}
           description={`${batch.product.name} ${batch.product.strength} · Batch ${batch.batchNumber}`}
-          actions={<ChainBadge chain={pack.chain} />}
+          actions={
+            <div className="flex flex-wrap items-center gap-3">
+              <ChainBadge chain={pack.chain} />
+              {canDispense ? <DispenseButton publicId={pack.publicId} /> : null}
+            </div>
+          }
         />
       </div>
 

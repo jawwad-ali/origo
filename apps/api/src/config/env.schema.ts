@@ -35,6 +35,14 @@ export const envSchema = z.object({
   /** Where finished label PDFs are written. Shared by the API (download) and the worker (write). */
   LABEL_EXPORT_DIR: z.string().min(1).default("./var/label-exports"),
   LABEL_EXPORT_TTL_HOURS: z.coerce.number().int().positive().default(24),
+
+  /** Key for hashing scanners' IPs, so repeat scans can be counted without storing any IP. */
+  SCAN_HASH_SECRET: z.string().min(32, "SCAN_HASH_SECRET must be at least 32 characters"),
+  /**
+   * Shared with the web app. Location headers on public verify calls are trusted only when this
+   * secret comes with them, so nobody can fake a scan's city by calling the API directly.
+   */
+  WEB_PROXY_SECRET: z.string().min(32).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

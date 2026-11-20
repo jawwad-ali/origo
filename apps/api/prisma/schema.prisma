@@ -224,6 +224,7 @@ model Pack {
   currentOwner  Organization   @relation("PackOwner", fields: [currentOwnerOrgId], references: [id], onDelete: Restrict)
   transferItems TransferItem[]
   ledgerEvents  LedgerEvent[]
+  scans         Scan[]
 
   @@index([batchId, serial])
   @@index([currentOwnerOrgId, status])
@@ -266,6 +267,7 @@ enum LedgerEventType {
   TRANSFER_RECEIVED
   TRANSFER_REJECTED
   TRANSFER_CANCELLED
+  DISPENSED
 }
 
 /// A handover of packs from one organization to another. Ownership moves only when the receiver accepts.
@@ -332,4 +334,28 @@ model LedgerEvent {
   @@unique([packId, seq])
   @@index([transferId])
   @@map("ledger_events")
+}
+
+enum VerificationVerdict {
+  VERIFIED
+  WARNING
+  NOT_RECOGNIZED
+}
+
+/// One public verification of a pack. The visitor's IP is never stored, only a keyed hash of it,
+/// enough to tell repeat scans from new devices.
+model Scan {
+  id             String              @id @default(uuid(7)) @db.Uuid
+  packId         String              @map("pack_id") @db.Uuid
+  verdict        VerificationVerdict
+  signatureValid Boolean             @map("signature_valid")
+  deviceHash     String?             @map("device_hash") @db.Char(64)
+  city           String?
+  country        String?             @db.Char(2)
+  scannedAt      DateTime            @default(now()) @map("scanned_at")
+
+  pack Pack @relation(fields: [packId], references: [id], onDelete: Restrict)
+
+  @@index([packId, scannedAt])
+  @@map("scans")
 }

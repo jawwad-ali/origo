@@ -4,6 +4,7 @@ import {
   ArrowUpFromLine,
   CircleCheck,
   CircleX,
+  HandHeart,
   Clock,
   type LucideIcon,
   PackagePlus,
@@ -31,6 +32,7 @@ export const LEDGER_EVENT_STYLE: Record<
   TRANSFER_RECEIVED: { icon: ArrowDownToLine, verb: "Received by", tone: "success" },
   TRANSFER_REJECTED: { icon: CircleX, verb: "Rejected by", tone: "danger" },
   TRANSFER_CANCELLED: { icon: Undo2, verb: "Cancelled by", tone: "neutral" },
+  DISPENSED: { icon: HandHeart, verb: "Dispensed to a patient by", tone: "success" },
 };
 
 /** Characters of a SHA-256 hash shown inline; the full value is in a tooltip. */

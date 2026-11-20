@@ -16,6 +16,7 @@ export const AUDIT_ACTIONS = {
   TRANSFER_ACCEPTED: "transfer.accepted",
   TRANSFER_REJECTED: "transfer.rejected",
   TRANSFER_CANCELLED: "transfer.cancelled",
+  PACK_DISPENSED: "pack.dispensed",
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];
@@ -28,6 +29,7 @@ export const AUDIT_ENTITIES = {
   BATCH: "batch",
   LABEL_EXPORT: "label_export",
   TRANSFER: "transfer",
+  PACK: "pack",
 } as const;
 
 export type AuditEntity = (typeof AUDIT_ENTITIES)[keyof typeof AUDIT_ENTITIES];
