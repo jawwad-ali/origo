@@ -16,7 +16,8 @@
     "postinstall": "prisma generate",
     "qr:keygen": "tsx scripts/generate-qr-key.ts",
     "dev:worker": "nest start --watch --path tsconfig.worker.json --entryFile worker --exec \"node --env-file=.env\"",
-    "start:worker": "node dist/worker.js"
+    "start:worker": "node dist/worker.js",
+    "ledger:backfill": "tsx --env-file=.env scripts/backfill-ledger.ts"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.24",

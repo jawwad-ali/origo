@@ -13,17 +13,18 @@ import {
   SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
+  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
 import { ROUTES } from "@/lib/routes";
-import { buildNav, isActivePath } from "../nav";
+import { buildNav, isActivePath, type NavCounts } from "../nav";
 import { UserMenu } from "./user-menu";
 
-export const AppSidebar = ({ user }: { user: CurrentUserDto }) => {
+export const AppSidebar = ({ user, counts }: { user: CurrentUserDto; counts: NavCounts }) => {
   const pathname = usePathname();
-  const sections = buildNav(user);
+  const sections = buildNav(user, counts);
 
   return (
     <Sidebar collapsible="icon">
@@ -52,6 +53,12 @@ export const AppSidebar = ({ user }: { user: CurrentUserDto }) => {
                           <span>{item.title}</span>
                         </Link>
                       </SidebarMenuButton>
+                      {item.badge ? (
+                        <SidebarMenuBadge className="bg-primary !text-primary-foreground tabular rounded-full">
+                          {item.badge}
+                          <span className="sr-only"> waiting</span>
+                        </SidebarMenuBadge>
+                      ) : null}
                     </SidebarMenuItem>
                   );
                 })}

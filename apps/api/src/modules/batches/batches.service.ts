@@ -63,7 +63,13 @@ export class BatchesService {
         tx,
       );
       await this.packs.register(
-        { batchId: created.id, ownerOrgId: orgId, count: input.packCount, registeredAt: created.createdAt },
+        {
+          batchId: created.id,
+          ownerOrgId: orgId,
+          registeredById: principal.userId,
+          count: input.packCount,
+          registeredAt: created.createdAt,
+        },
         tx,
       );
       await this.audit.record(
@@ -112,6 +118,11 @@ export class BatchesService {
   }
 
   /** Loads a batch the caller's organization owns. Used by label exports. */
+  /** Batches by ID with their products, unscoped. Callers must check access themselves. */
+  findByIds(ids: string[]): Promise<BatchRecord[]> {
+    return ids.length === 0 ? Promise.resolve([]) : this.batches.findByIds(ids);
+  }
+
   async getRecord(principal: Principal, id: string): Promise<BatchRecord> {
     const batch = await this.batches.findForOrg(orgIdOf(principal), id);
     if (!batch) throw new EntityNotFoundException("Batch");

@@ -12,6 +12,10 @@ export const AUDIT_ACTIONS = {
   BATCH_REGISTERED: "batch.registered",
   LABEL_EXPORT_REQUESTED: "label_export.requested",
   LABEL_EXPORT_DOWNLOADED: "label_export.downloaded",
+  TRANSFER_CREATED: "transfer.created",
+  TRANSFER_ACCEPTED: "transfer.accepted",
+  TRANSFER_REJECTED: "transfer.rejected",
+  TRANSFER_CANCELLED: "transfer.cancelled",
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];
@@ -23,6 +27,7 @@ export const AUDIT_ENTITIES = {
   PRODUCT: "product",
   BATCH: "batch",
   LABEL_EXPORT: "label_export",
+  TRANSFER: "transfer",
 } as const;
 
 export type AuditEntity = (typeof AUDIT_ENTITIES)[keyof typeof AUDIT_ENTITIES];

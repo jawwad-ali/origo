@@ -1,6 +1,8 @@
 import { type PackDto } from "@origo/shared";
+import Link from "next/link";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatDate } from "@/lib/format";
+import { packPath } from "@/lib/routes";
 import { PackStatusBadge } from "./catalog-badges";
 
 export const PacksTable = ({ packs }: { packs: PackDto[] }) => (
@@ -16,7 +18,14 @@ export const PacksTable = ({ packs }: { packs: PackDto[] }) => (
       <TableBody>
         {packs.map((pack) => (
           <TableRow key={pack.id}>
-            <TableCell className="pl-4 font-mono text-sm">{pack.publicId}</TableCell>
+            <TableCell className="pl-4 font-mono text-sm">
+              <Link
+                href={packPath(pack.publicId)}
+                className="hover:text-primary focus-visible:ring-ring rounded-sm outline-none hover:underline focus-visible:ring-2"
+              >
+                {pack.publicId}
+              </Link>
+            </TableCell>
             <TableCell>
               <PackStatusBadge status={pack.status} />
             </TableCell>

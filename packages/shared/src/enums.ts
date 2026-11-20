@@ -33,3 +33,18 @@ export type PackStatus = (typeof PACK_STATUSES)[number];
 
 export const LABEL_EXPORT_STATUSES = ["QUEUED", "PROCESSING", "READY", "FAILED"] as const;
 export type LabelExportStatus = (typeof LABEL_EXPORT_STATUSES)[number];
+
+export const TRANSFER_STATUSES = ["PENDING", "ACCEPTED", "REJECTED", "CANCELLED"] as const;
+export type TransferStatus = (typeof TRANSFER_STATUSES)[number];
+
+export const LEDGER_EVENT_TYPES = [
+  "REGISTERED",
+  "TRANSFER_SENT",
+  "TRANSFER_RECEIVED",
+  "TRANSFER_REJECTED",
+  "TRANSFER_CANCELLED",
+] as const;
+export type LedgerEventType = (typeof LEDGER_EVENT_TYPES)[number];
+
+export const TRANSFER_DIRECTIONS = ["incoming", "outgoing"] as const;
+export type TransferDirection = (typeof TRANSFER_DIRECTIONS)[number];

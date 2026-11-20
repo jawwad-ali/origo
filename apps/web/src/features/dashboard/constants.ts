@@ -45,6 +45,7 @@ export const ROLE_WORKFLOWS: Record<OrgType, WorkflowStep[]> = {
       title: "Ship to distributors",
       description: "Send packs; they confirm receipt on their side.",
       icon: Truck,
+      href: ROUTES.newTransfer,
     },
   ],
   DISTRIBUTOR: [
@@ -52,25 +53,39 @@ export const ROLE_WORKFLOWS: Record<OrgType, WorkflowStep[]> = {
       title: "Accept incoming stock",
       description: "Confirm transfers sent by manufacturers.",
       icon: ClipboardCheck,
+      href: ROUTES.transfers,
     },
     {
       title: "Check pack history",
       description: "See every handover a pack has been through.",
       icon: History,
+      href: ROUTES.inventory,
     },
-    { title: "Ship onward", description: "Transfer to wholesalers or pharmacies.", icon: ArrowLeftRight },
+    {
+      title: "Ship onward",
+      description: "Transfer to wholesalers or pharmacies.",
+      icon: ArrowLeftRight,
+      href: ROUTES.newTransfer,
+    },
   ],
   WHOLESALER: [
     {
       title: "Accept incoming stock",
       description: "Confirm transfers from distributors.",
       icon: ClipboardCheck,
+      href: ROUTES.transfers,
     },
-    { title: "Check pack history", description: "Spot packs that skipped an expected step.", icon: History },
+    {
+      title: "Check pack history",
+      description: "Spot packs that skipped an expected step.",
+      icon: History,
+      href: ROUTES.inventory,
+    },
     {
       title: "Supply pharmacies",
       description: "Transfer stock to the pharmacies you serve.",
       icon: ArrowLeftRight,
+      href: ROUTES.newTransfer,
     },
   ],
   PHARMACY: [
@@ -78,6 +93,7 @@ export const ROLE_WORKFLOWS: Record<OrgType, WorkflowStep[]> = {
       title: "Receive stock",
       description: "Confirm deliveries before packs go on the shelf.",
       icon: ClipboardCheck,
+      href: ROUTES.transfers,
     },
     {
       title: "Dispense to patients",

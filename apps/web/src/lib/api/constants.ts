@@ -13,4 +13,7 @@ export const API_ROUTES = {
   products: "/products",
   batches: "/batches",
   labelExports: "/label-exports",
+  inventory: "/inventory",
+  transfers: "/transfers",
+  packs: "/packs",
 } as const;

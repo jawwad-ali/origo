@@ -199,13 +199,13 @@ Notes:
 Every `LedgerEvent` stores the hash of the event before it:
 
 ```
-hash = SHA-256( prevHash ‖ packId ‖ type ‖ actorOrgId ‖ canonicalJSON(payload) ‖ createdAt )
+hash = SHA-256( prevHash | packId | seq | type | actorOrgId | counterpartyOrgId | transferId | createdAt )
 ```
 
-- The chain is per pack, so writes to different packs don't block each other.
-- A Postgres trigger rejects `UPDATE` and `DELETE` on `ledger_events`, and the app's database role only has `INSERT` and `SELECT` on that table.
-- `GET /packs/:id/ledger/verify` recomputes the chain and reports the first broken link.
-- A nightly job computes a daily root hash over all of the day's events and stores it. Publishing that root (for example, as a signed Git commit) is an optional extra.
+- The chain is per pack (`seq` starts at 1, the first `prevHash` is 64 zeros), so writes to different packs don't block each other. Writers lock the packs (`SELECT … FOR UPDATE`) before reading the chain's tail, so two appends can't race; `UNIQUE (pack_id, seq)` is the backstop.
+- A Postgres trigger rejects `UPDATE`, `DELETE` and `TRUNCATE` on `ledger_events`. Tested: both statements fail with "ledger_events is append-only".
+- `GET /packs/:publicId/history` recomputes the whole chain on every read and reports the first broken link. Tested: rewriting one event, or deleting one, is reported at the right `seq`.
+- Not yet done: a separate migration role, so the app's own role can't disable the trigger (today the app role owns the table); a nightly root hash over the day's events, optionally published outside Origo.
 
 This gives most of what a blockchain gives in this context (proof that history wasn't quietly edited) at a fraction of the cost. The trade-off is that it trusts the platform operator, which is fine for an MVP. The design is recorded in `docs/adr/0001-hash-chain-over-blockchain.md`.
 
@@ -238,18 +238,18 @@ A real signature on a copied label still looks valid, so the scan history is use
 
 ### 6.4 Transfers are two-step
 
-1. The sender creates a transfer and its packs move to `IN_TRANSIT`.
-2. The receiver accepts or rejects it.
-3. On accept, ownership moves and ledger events are written, all in one database transaction.
+1. The sender picks batches and quantities. The API locks that many in-stock packs per batch (lowest serial first, `FOR UPDATE SKIP LOCKED` so two concurrent sends take different packs), marks them `IN_TRANSIT` and writes a `TRANSFER_SENT` event for each.
+2. The receiver accepts or rejects (with a reason); the sender can cancel while it's pending.
+3. Accept moves ownership to the receiver; reject and cancel return the packs to the sender. Each writes a ledger event per pack. Every step is one transaction, with the transfer row locked so two people can't close it at once.
 
 Rules enforced in the service layer and backed by database constraints:
 
-- Only the current owner can send a pack.
-- A pack can be in at most one open transfer (partial unique index).
-- Recalled or expired packs can't be transferred.
-- The allowed flow is Manufacturer → Distributor → Wholesaler → Pharmacy. Skipping a step (for example, Distributor → Pharmacy) is allowed through a configurable rule set.
+- Only the current owner can send a pack, and only from batches that are active and not expired.
+- A pack can be in at most one open transfer: `transfer_items.is_open` plus a partial unique index on `pack_id WHERE is_open`.
+- Allowed recipients come from one table (`ALLOWED_TRANSFER_TARGETS` in `@origo/shared`): manufacturer → distributor; distributor → wholesaler or pharmacy; wholesaler → pharmacy. Pharmacies don't send.
+- A party to a transfer can see it; anyone else gets 404. A pack's history is visible to its current owner and to every organization in its ledger.
 
-Transfer requests take an `Idempotency-Key` header so a retried request doesn't create a duplicate.
+`POST /transfers` takes an `Idempotency-Key` header (unique per sender), so a retried request returns the original transfer instead of creating a second one. Transfer references (`TRF-2026-000001`) come from their own sequence.
 
 ### 6.5 Auth and authorization
 
@@ -286,7 +286,7 @@ REST, versioned under `/api/v1`, documented at `/api/docs`.
 | Products and batches | `POST /products`, `GET /products`, `POST /products/:id/batches` (creates the batch and all its packs), `GET /batches`, `GET /batches/:id` |
 | Packs                | `GET /batches/:id/packs`, `GET /batches/:id/label-preview`; Phase 3 adds `GET /packs/:id/ledger` and `GET /packs/:id/ledger/verify`       |
 | Label export         | `POST /batches/:id/label-exports` (queued, 202) → `GET /label-exports/:id` → `GET /label-exports/:id/file`                                |
-| Transfers            | `POST /transfers`, `POST /transfers/:id/accept`, `POST /transfers/:id/reject`, `GET /transfers?direction=incoming`                        |
+| Transfers            | `POST /transfers` (Idempotency-Key), `GET /transfers?direction=`, `GET /transfers/:id`, `POST /transfers/:id/accept                       | reject | cancel`, `GET /transfers/recipients`, `GET /inventory`, `GET /packs/:publicId/history` |
 | Pharmacy             | `POST /packs/:id/dispense`                                                                                                                |
 | Verification         | `GET /verify/:packId` (public)                                                                                                            |
 | Health               | `GET /health/live`, `GET /health/ready`                                                                                                   |
@@ -433,6 +433,15 @@ A seed script creates a full demo world so visitors can try the app without sign
 - Production deployment: Vercel for web, Oracle VM with `deploy.sh` for the API
 
 Phase 1 rate limiting is in-memory, which is correct while one API container runs.
+
+## 16. Phase 3 deliverables
+
+- `Transfer`, `TransferItem`, `LedgerEvent` models; append-only trigger; one-open-transfer partial index; `transfer_ref_seq`
+- `LedgerService`: per-pack hash chains, append under row locks, full-chain verification
+- Batch registration now writes each pack's `REGISTERED` event; `ledger:backfill` script for packs created before the ledger
+- Transfers: create (with idempotency), accept, reject, cancel; recipient directory; pending-incoming count
+- Inventory by batch for every member organization; pack history with chain check
+- Web: inventory with pack lookup, transfers (incoming/outgoing), new-transfer form, transfer detail with actions, pack timeline; pending-transfer badge in the sidebar; dashboard steps linked for every role
 
 ## 15. Phase 2 deliverables
 

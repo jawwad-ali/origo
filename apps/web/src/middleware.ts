@@ -76,5 +76,8 @@ export const config = {
     "/admin/:path*",
     "/products/:path*",
     "/batches/:path*",
+    "/inventory/:path*",
+    "/transfers/:path*",
+    "/packs/:path*",
   ],
 };

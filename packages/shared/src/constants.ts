@@ -1,4 +1,13 @@
-import type { BatchStatus, DosageForm, MembershipRole, OrgStatus, OrgType, PackStatus } from "./enums";
+import type {
+  BatchStatus,
+  DosageForm,
+  LedgerEventType,
+  MembershipRole,
+  OrgStatus,
+  OrgType,
+  PackStatus,
+  TransferStatus,
+} from "./enums";
 
 export const ORG_TYPE_LABELS: Record<OrgType, string> = {
   MANUFACTURER: "Manufacturer",
@@ -58,3 +67,34 @@ export const BATCH_NUMBER_MAX_LENGTH = 40;
 /** Pack IDs look like MED-2026-000123: prefix, year of registration, zero-padded serial. */
 export const PACK_ID_PREFIX = "MED";
 export const PACK_ID_PATTERN = /^MED-\d{4}-\d{6,}$/;
+
+export const TRANSFER_STATUS_LABELS: Record<TransferStatus, string> = {
+  PENDING: "Awaiting receiver",
+  ACCEPTED: "Received",
+  REJECTED: "Rejected",
+  CANCELLED: "Cancelled",
+};
+
+export const LEDGER_EVENT_LABELS: Record<LedgerEventType, string> = {
+  REGISTERED: "Registered",
+  TRANSFER_SENT: "Sent",
+  TRANSFER_RECEIVED: "Received",
+  TRANSFER_REJECTED: "Returned (rejected)",
+  TRANSFER_CANCELLED: "Returned (cancelled)",
+};
+
+/**
+ * Who may send stock to whom. The normal chain is manufacturer → distributor → wholesaler → pharmacy;
+ * distributors may also supply pharmacies directly.
+ */
+export const ALLOWED_TRANSFER_TARGETS: Record<OrgType, readonly OrgType[]> = {
+  MANUFACTURER: ["DISTRIBUTOR"],
+  DISTRIBUTOR: ["WHOLESALER", "PHARMACY"],
+  WHOLESALER: ["PHARMACY"],
+  PHARMACY: [],
+};
+
+export const MAX_TRANSFER_LINES = 20;
+export const MAX_PACKS_PER_TRANSFER = 5000;
+export const TRANSFER_NOTE_MAX_LENGTH = 300;
+export const TRANSFER_REF_PREFIX = "TRF";

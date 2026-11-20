@@ -7,6 +7,7 @@ import { formatPackId } from "./pack-id";
 export interface RegisterPacksCommand {
   batchId: string;
   ownerOrgId: string;
+  registeredById: string;
   count: number;
   registeredAt: Date;
 }
@@ -19,19 +20,24 @@ export class PacksRepository {
    * Reserves `count` serials from pack_serial_seq and inserts the packs in one statement.
    * Must run inside the batch's transaction so a failed registration leaves no packs behind.
    */
-  async register(command: RegisterPacksCommand, tx: Prisma.TransactionClient): Promise<number> {
+  async register(command: RegisterPacksCommand, tx: Prisma.TransactionClient): Promise<string[]> {
     const serials = await tx.$queryRaw<{ serial: number }[]>`
       SELECT nextval('pack_serial_seq')::int AS serial FROM generate_series(1, ${command.count}::int)
     `;
-    const result = await tx.pack.createMany({
+    const created = await tx.pack.createManyAndReturn({
       data: serials.map(({ serial }) => ({
         serial,
         publicId: formatPackId(serial, command.registeredAt),
         batchId: command.batchId,
         currentOwnerOrgId: command.ownerOrgId,
       })),
+      select: { id: true },
     });
-    return result.count;
+    return created.map((pack) => pack.id);
+  }
+
+  findByPublicId(publicId: string): Promise<Pack | null> {
+    return this.prisma.pack.findUnique({ where: { publicId } });
   }
 
   async listForBatch(batchId: string, window: PageWindow): Promise<{ items: Pack[]; total: number }> {

@@ -5,5 +5,7 @@ export * from "./schemas/auth";
 export * from "./schemas/organization";
 export * from "./schemas/product";
 export * from "./schemas/batch";
+export * from "./schemas/transfer";
 export * from "./types/api";
 export * from "./types/catalog";
+export * from "./types/supply";

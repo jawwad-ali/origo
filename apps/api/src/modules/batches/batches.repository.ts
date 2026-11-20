@@ -42,6 +42,11 @@ export class BatchesRepository {
     return tx.batch.create({ data, include: batchWithProduct });
   }
 
+  /** Not org-scoped: for stock held by distributors and pharmacies, access is checked via pack ownership. */
+  findByIds(ids: string[]): Promise<BatchRecord[]> {
+    return this.prisma.batch.findMany({ where: { id: { in: ids } }, include: batchWithProduct });
+  }
+
   findForOrg(orgId: string, id: string): Promise<BatchRecord | null> {
     return this.prisma.batch.findFirst({ where: { id, organizationId: orgId }, include: batchWithProduct });
   }

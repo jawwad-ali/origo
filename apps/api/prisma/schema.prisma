@@ -60,10 +60,12 @@ model Organization {
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
-  memberships Membership[]
-  products    Product[]
-  batches     Batch[]
-  ownedPacks  Pack[]       @relation("PackOwner")
+  memberships  Membership[]
+  products     Product[]
+  batches      Batch[]
+  ownedPacks   Pack[]       @relation("PackOwner")
+  transfersOut Transfer[]   @relation("TransferFrom")
+  transfersIn  Transfer[]   @relation("TransferTo")
 
   @@unique([country, licenseNumber])
   @@index([status, createdAt])
@@ -218,8 +220,10 @@ model Pack {
   status            PackStatus @default(IN_STOCK)
   createdAt         DateTime   @default(now()) @map("created_at")
 
-  batch        Batch        @relation(fields: [batchId], references: [id], onDelete: Restrict)
-  currentOwner Organization @relation("PackOwner", fields: [currentOwnerOrgId], references: [id], onDelete: Restrict)
+  batch         Batch          @relation(fields: [batchId], references: [id], onDelete: Restrict)
+  currentOwner  Organization   @relation("PackOwner", fields: [currentOwnerOrgId], references: [id], onDelete: Restrict)
+  transferItems TransferItem[]
+  ledgerEvents  LedgerEvent[]
 
   @@index([batchId, serial])
   @@index([currentOwnerOrgId, status])
@@ -247,4 +251,85 @@ model LabelExport {
   @@index([batchId, createdAt])
   @@index([status, expiresAt])
   @@map("label_exports")
+}
+
+enum TransferStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  CANCELLED
+}
+
+enum LedgerEventType {
+  REGISTERED
+  TRANSFER_SENT
+  TRANSFER_RECEIVED
+  TRANSFER_REJECTED
+  TRANSFER_CANCELLED
+}
+
+/// A handover of packs from one organization to another. Ownership moves only when the receiver accepts.
+model Transfer {
+  id              String         @id @default(uuid(7)) @db.Uuid
+  reference       String         @unique
+  fromOrgId       String         @map("from_org_id") @db.Uuid
+  toOrgId         String         @map("to_org_id") @db.Uuid
+  status          TransferStatus @default(PENDING)
+  packCount       Int            @map("pack_count")
+  note            String?
+  rejectionReason String?        @map("rejection_reason")
+  idempotencyKey  String?        @map("idempotency_key")
+  createdById     String         @map("created_by_id") @db.Uuid
+  respondedById   String?        @map("responded_by_id") @db.Uuid
+  createdAt       DateTime       @default(now()) @map("created_at")
+  respondedAt     DateTime?      @map("responded_at")
+
+  fromOrg Organization   @relation("TransferFrom", fields: [fromOrgId], references: [id], onDelete: Restrict)
+  toOrg   Organization   @relation("TransferTo", fields: [toOrgId], references: [id], onDelete: Restrict)
+  items   TransferItem[]
+
+  @@unique([fromOrgId, idempotencyKey])
+  @@index([fromOrgId, status, createdAt])
+  @@index([toOrgId, status, createdAt])
+  @@map("transfers")
+}
+
+/// One pack in a transfer. is_open mirrors "transfer is pending" so a partial unique index can stop
+/// the same pack being in two open transfers at once (see the migration).
+model TransferItem {
+  id         String  @id @default(uuid(7)) @db.Uuid
+  transferId String  @map("transfer_id") @db.Uuid
+  packId     String  @map("pack_id") @db.Uuid
+  batchId    String  @map("batch_id") @db.Uuid
+  isOpen     Boolean @default(true) @map("is_open")
+
+  transfer Transfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
+  pack     Pack     @relation(fields: [packId], references: [id], onDelete: Restrict)
+
+  @@unique([transferId, packId])
+  @@index([packId])
+  @@index([transferId, batchId])
+  @@map("transfer_items")
+}
+
+/// Append-only, hash-chained history of each pack. A database trigger rejects UPDATE and DELETE.
+/// hash = SHA-256 over the previous hash and this event's fields; seq starts at 1 per pack.
+model LedgerEvent {
+  id                String          @id @default(uuid(7)) @db.Uuid
+  packId            String          @map("pack_id") @db.Uuid
+  seq               Int
+  type              LedgerEventType
+  actorOrgId        String          @map("actor_org_id") @db.Uuid
+  actorUserId       String?         @map("actor_user_id") @db.Uuid
+  counterpartyOrgId String?         @map("counterparty_org_id") @db.Uuid
+  transferId        String?         @map("transfer_id") @db.Uuid
+  prevHash          String          @map("prev_hash") @db.Char(64)
+  hash              String          @db.Char(64)
+  createdAt         DateTime        @map("created_at") @db.Timestamptz(3)
+
+  pack Pack @relation(fields: [packId], references: [id], onDelete: Restrict)
+
+  @@unique([packId, seq])
+  @@index([transferId])
+  @@map("ledger_events")
 }
