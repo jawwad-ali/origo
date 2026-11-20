@@ -23,7 +23,7 @@ Requirements: Node 22+, pnpm 10, and PostgreSQL 16 (Docker or a Neon dev branch)
 ```bash
 pnpm install
 
-# 1. Database (skip if you use Neon; put its URL in apps/api/.env instead)
+# 1. Database: Docker below, or a Neon dev branch (put its URLs in apps/api/.env, see .env.example)
 docker compose -f infra/docker-compose.dev.yml up -d
 
 # 2. Environment

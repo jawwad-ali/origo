@@ -1,0 +1,507 @@
+/*
+ * The sign-in showcase: a medicine carton that travels the supply chain and is verified at the end.
+ * One 10s loop: the route fills stop by stop, then the QR is scanned and the verdict appears.
+ * With reduced motion everything shows in its final state.
+ */
+
+.panel {
+  --ink: #0a2229;
+  --ink-raised: #0f303a;
+  --line: rgb(255 255 255 / 0.1);
+  --text: #e4eff2;
+  --muted: #8eb0ba;
+  --accent: #5ec4da;
+  --verified: #4ade80;
+  --paper: #ffffff;
+  --paper-shade: #e9eef0;
+  --label-ink: #0f1d24;
+  --label-muted: #5a6a72;
+  --brand: #155e75;
+  --loop: 10s;
+
+  position: relative;
+  display: grid;
+  height: 100%;
+  grid-template-rows: auto 1fr auto;
+  gap: 2.5rem;
+  overflow: hidden;
+  padding: 3rem 3.5rem;
+  background-color: var(--ink);
+  /* A faint printer's grid, like a packaging spec sheet. */
+  background-image:
+    linear-gradient(var(--line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size: 48px 48px;
+  background-position: -1px -1px;
+  color: var(--text);
+}
+
+.panel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 60% 45%, transparent 30%, var(--ink) 80%);
+}
+
+.panel > * {
+  position: relative;
+  z-index: 1;
+}
+
+.eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.eyebrowDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+/* ---------- Carton ---------- */
+
+.stage {
+  display: grid;
+  place-items: center;
+  perspective: 1400px;
+}
+
+.carton {
+  position: relative;
+  width: 360px;
+  height: 196px;
+  transform-style: preserve-3d;
+  transform: rotateX(-14deg) rotateY(-28deg) translateX(-24px);
+}
+
+.face {
+  position: absolute;
+  backface-visibility: hidden;
+}
+
+.front {
+  inset: 0;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--paper);
+  color: var(--label-ink);
+  box-shadow: 0 40px 60px -20px rgb(0 0 0 / 0.55);
+  transform: translateZ(36px);
+}
+
+.side {
+  top: 0;
+  left: 100%;
+  width: 72px;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(90deg, #11546a, #0d4456);
+  transform-origin: left center;
+  transform: translateZ(36px) rotateY(90deg);
+}
+
+.sideText {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 0.6rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgb(255 255 255 / 0.8);
+}
+
+.top {
+  left: 0;
+  bottom: 100%;
+  width: 100%;
+  height: 72px;
+  background: linear-gradient(0deg, #f4f7f8, #dfe6e9);
+  transform-origin: center bottom;
+  transform: translateZ(36px) rotateX(90deg);
+}
+
+.label {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  padding: 16px 0 14px 18px;
+}
+
+.maker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--brand);
+}
+
+.makerBar {
+  width: 14px;
+  height: 3px;
+  background: var(--brand);
+}
+
+.drug {
+  margin-top: 14px;
+  font-size: 1.6rem;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.strength {
+  margin-top: 4px;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.form {
+  margin-top: 2px;
+  font-size: 0.68rem;
+  color: var(--label-muted);
+}
+
+.print {
+  display: flex;
+  gap: 14px;
+  margin-top: auto;
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  color: var(--label-muted);
+}
+
+.print b {
+  font-weight: 500;
+  color: var(--label-ink);
+}
+
+.qrBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 16px;
+  border-left: 1px dashed #cfd7db;
+}
+
+.qr {
+  position: relative;
+  width: 84px;
+  height: 84px;
+  overflow: hidden;
+}
+
+.qr svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.qrId {
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  letter-spacing: 0.02em;
+  color: var(--label-muted);
+}
+
+.beam {
+  position: absolute;
+  left: -6px;
+  right: -6px;
+  top: 0;
+  height: 2px;
+  background: var(--brand);
+  box-shadow: 0 0 10px 2px rgb(21 94 117 / 0.45);
+  opacity: 0;
+  animation: beam var(--loop) ease-in-out infinite;
+}
+
+/* ---------- Route ---------- */
+
+.journey {
+  display: grid;
+  gap: 1.75rem;
+}
+
+.routeWrap {
+  position: relative;
+}
+
+.route {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.track,
+.fill {
+  position: absolute;
+  top: 5px;
+  left: 6px;
+  height: 2px;
+  border-radius: 2px;
+}
+
+.track {
+  right: calc(25% - 6px);
+  background: var(--line);
+}
+
+.fill {
+  width: calc(75% - 12px);
+  transform-origin: left center;
+  background: var(--accent);
+  animation: fill var(--loop) ease-in-out infinite;
+}
+
+.stop {
+  display: grid;
+  gap: 0.15rem;
+  padding-right: 0.75rem;
+}
+
+.node {
+  width: 12px;
+  height: 12px;
+  margin-bottom: 0.65rem;
+  border: 2px solid var(--muted);
+  border-radius: 999px;
+  background: var(--ink);
+  animation: var(--loop) ease-in-out infinite;
+}
+
+.stop:nth-child(1) .node {
+  animation-name: node1;
+}
+.stop:nth-child(2) .node {
+  animation-name: node2;
+}
+.stop:nth-child(3) .node {
+  animation-name: node3;
+}
+.stop:nth-child(4) .node {
+  animation-name: node4;
+}
+
+.role {
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.city {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.verdict {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.75rem 0.4rem 0.5rem;
+  border: 1px solid rgb(74 222 128 / 0.3);
+  border-radius: 999px;
+  background: rgb(74 222 128 / 0.08);
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--verified);
+  animation: verdict var(--loop) ease-in-out infinite;
+}
+
+.headline {
+  max-width: 30rem;
+}
+
+.headline h2 {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.headline p {
+  margin: 0.6rem 0 0;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+/* ---------- Timeline (percent of the 10s loop) ---------- */
+
+@keyframes fill {
+  0%,
+  8% {
+    transform: scaleX(0);
+  }
+  62%,
+  96% {
+    transform: scaleX(1);
+  }
+  100% {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes node1 {
+  0%,
+  6% {
+    border-color: var(--muted);
+    background: var(--ink);
+  }
+  10%,
+  96% {
+    border-color: var(--accent);
+    background: var(--accent);
+  }
+  100% {
+    border-color: var(--muted);
+    background: var(--ink);
+  }
+}
+
+@keyframes node2 {
+  0%,
+  24% {
+    border-color: var(--muted);
+    background: var(--ink);
+  }
+  28%,
+  96% {
+    border-color: var(--accent);
+    background: var(--accent);
+  }
+  100% {
+    border-color: var(--muted);
+    background: var(--ink);
+  }
+}
+
+@keyframes node3 {
+  0%,
+  42% {
+    border-color: var(--muted);
+    background: var(--ink);
+  }
+  46%,
+  96% {
+    border-color: var(--accent);
+    background: var(--accent);
+  }
+  100% {
+    border-color: var(--muted);
+    background: var(--ink);
+  }
+}
+
+@keyframes node4 {
+  0%,
+  60% {
+    border-color: var(--muted);
+    background: var(--ink);
+  }
+  64%,
+  96% {
+    border-color: var(--verified);
+    background: var(--verified);
+  }
+  100% {
+    border-color: var(--muted);
+    background: var(--ink);
+  }
+}
+
+@keyframes beam {
+  0%,
+  66% {
+    top: 0;
+    opacity: 0;
+  }
+  68% {
+    top: 0;
+    opacity: 1;
+  }
+  78% {
+    top: calc(100% - 2px);
+    opacity: 1;
+  }
+  80%,
+  100% {
+    top: calc(100% - 2px);
+    opacity: 0;
+  }
+}
+
+@keyframes verdict {
+  0%,
+  78% {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  82%,
+  95% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fill,
+  .node,
+  .verdict,
+  .beam {
+    animation: none;
+  }
+  .fill {
+    transform: scaleX(1);
+  }
+  .node {
+    border-color: var(--accent);
+    background: var(--accent);
+  }
+  .stop:nth-child(4) .node {
+    border-color: var(--verified);
+    background: var(--verified);
+  }
+  .verdict {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 1279px) {
+  .panel {
+    padding: 2.5rem;
+  }
+  .carton {
+    width: 320px;
+    height: 176px;
+  }
+  .drug {
+    font-size: 1.4rem;
+  }
+  .qr {
+    width: 72px;
+    height: 72px;
+  }
+}
