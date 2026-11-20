@@ -1,0 +1,399 @@
+# Origo: System Architecture
+
+Origo is a pharmaceutical traceability and anti-counterfeit platform. Every medicine pack gets a signed digital identity. Supply-chain participants record each handover, and anyone can scan a pack to verify it.
+
+This document covers the architecture for the MVP (Phases 1 to 5 in [phases.md](../phases.md)).
+
+---
+
+## 1. Goals and non-goals
+
+**Goals**
+- Production-grade MVP: real auth, real database constraints, monitoring, deployed and publicly usable.
+- A codebase structured to scale: clear module boundaries, typed end to end, no shortcuts that would need a rewrite later.
+- A production-grade UI that looks designed, not generated (see section 10).
+- Tamper-evident history without a blockchain.
+- QR codes that can't be guessed or forged, plus detection of cloned codes.
+
+**Out of scope by choice:** CI/CD pipelines and automated test suites. Deployment is scripted instead (see section 11).
+
+**Non-goals (for the MVP)**
+- Blockchain, ZKP, NFC, IoT and AI anomaly detection. These are later phases.
+- ERP/WMS integrations and multi-country regulatory compliance.
+- A native mobile app. The patient verification page is a mobile-first web page.
+
+---
+
+## 2. High-level architecture
+
+```
+                         ┌───────────────────────────────┐
+   Manufacturer ─┐       │        apps/web (Next.js)     │
+   Distributor  ─┼──────▶│  /dashboard/*  (authenticated)│
+   Wholesaler   ─┤ HTTPS │  /v/[packId]   (public verify)│
+   Pharmacy     ─┘       └───────────────┬───────────────┘
+                                         │ REST + JSON (typed client
+   Patient ──── scans QR ──▶ /v/[packId] │  generated from OpenAPI)
+                                         ▼
+                         ┌───────────────────────────────┐
+                         │        apps/api (NestJS)      │
+                         │  auth · orgs · products       │
+                         │  packs · transfers · verify   │
+                         │  ledger · audit · health      │
+                         └──────┬─────────────────┬──────┘
+                                │                 │
+                     Prisma ORM │                 │ BullMQ
+                                ▼                 ▼
+                    ┌──────────────────┐  ┌────────────────┐
+                    │   PostgreSQL     │  │     Redis      │
+                    │ (source of truth)│  │ queues · cache │
+                    │ append-only      │  │ rate limits    │
+                    │ ledger table     │  └───────┬────────┘
+                    └──────────────────┘          │
+                                                  ▼
+                                       ┌────────────────────┐
+                                       │ apps/api worker    │
+                                       │ QR batch export    │
+                                       │ emails · expiry    │
+                                       └────────────────────┘
+```
+
+The API and worker run from the same NestJS codebase with two entry points (`main.ts` and `worker.ts`), so they share modules but scale on their own.
+
+---
+
+## 3. Tech stack
+
+| Layer | Choice | Why |
+|---|---|---|
+| Monorepo | pnpm workspaces + Turborepo | One repo, shared types, cached builds |
+| Frontend | Next.js 15 (App Router), TypeScript | Server-rendered verify page loads fast on cheap phones |
+| UI | Tailwind CSS v4 + shadcn/ui (restyled, not default), lucide icons | Accessible primitives we fully own and theme |
+| Tables / forms | TanStack Table, React Hook Form + Zod | Server-side sorting/filtering/pagination, inline validation |
+| Data fetching | TanStack Query + generated API client | Typed end to end, caching, retries |
+| Backend | NestJS 11, TypeScript | Modules, guards and DI fit a role-heavy domain |
+| ORM | Prisma | Typed queries, migrations, good NestJS support |
+| Database | PostgreSQL 16 | Relational data, constraints, triggers, transactions |
+| Queue / cache | Redis + BullMQ | Background jobs, rate limiting, short-lived cache |
+| Validation | Zod (shared package) | One schema for frontend forms and backend DTOs |
+| Auth | Own JWT auth (access + refresh tokens), argon2 | Roles and org approval are core to the domain |
+| API docs | OpenAPI via `@nestjs/swagger` | Live docs and the generated frontend client |
+| Logging / errors | pino (JSON logs), Sentry | Structured logs with request IDs, error tracking |
+| Code quality | ESLint, Prettier, strict TypeScript, Husky pre-commit (lint + typecheck) | Catches problems locally without a CI pipeline |
+| Hosting | Vercel (web), Oracle Cloud Always Free ARM VM (api + worker + Redis via Docker Compose, Caddy for HTTPS), Neon (Postgres) | Free with no expiry or sleeping, managed Postgres with backups |
+
+---
+
+## 4. Repository layout
+
+```
+origo/
+├── apps/
+│   ├── web/                    # Next.js
+│   │   └── src/
+│   │       ├── app/
+│   │       │   ├── (auth)/          login, signup, org onboarding
+│   │       │   ├── (dashboard)/     role-based dashboards
+│   │       │   └── v/[packId]/      public verification page
+│   │       ├── components/
+│   │       ├── features/            feature folders (products, transfers, ...)
+│   │       └── lib/                 api client, auth helpers
+│   └── api/                    # NestJS
+│       ├── src/
+│       │   ├── main.ts              HTTP entry point
+│       │   ├── worker.ts            background job entry point
+│       │   ├── common/              guards, filters, interceptors, decorators
+│       │   ├── config/              typed env config (validated at boot)
+│       │   └── modules/
+│       │       ├── auth/
+│       │       ├── organizations/
+│       │       ├── users/
+│       │       ├── products/
+│       │       ├── batches/
+│       │       ├── packs/
+│       │       ├── transfers/
+│       │       ├── verification/
+│       │       ├── ledger/          hash-chained event log
+│       │       ├── audit/
+│       │       └── health/
+│       └── prisma/
+│           ├── schema.prisma
+│           ├── migrations/
+│           └── seed.ts              demo data
+├── packages/
+│   ├── shared/                 # Zod schemas, enums, shared types
+│   ├── api-client/             # generated from OpenAPI
+│   ├── ui/                     # design tokens + restyled shadcn components
+│   └── config/                 # shared eslint, tsconfig, prettier
+├── infra/
+│   ├── docker-compose.dev.yml  # local Postgres + Redis
+│   ├── docker-compose.prod.yml # api, worker, redis, caddy on the Oracle VM
+│   ├── Caddyfile
+│   └── deploy.sh               # one-command production deploy
+├── docs/
+│   ├── architecture.md
+│   └── adr/                    # architecture decision records
+└── phases.md
+```
+
+### Code conventions that keep it scalable
+
+**Backend (NestJS)**
+- Each module has the same shape: `*.controller.ts` → `*.service.ts` → `*.repository.ts`, plus `dto/` and `*.module.ts`.
+- Controllers only parse input and shape output. Business rules live in services. Only repositories talk to Prisma.
+- Modules never reach into another module's repository. They call the other module's exported service, so any module can later be split into its own service.
+- Multi-step writes (transfer accept, pack registration) run inside one database transaction passed down from the service.
+- Side effects (emails, scan recording, QR export) go through the queue, never inline in a request.
+- Config is read through one typed `ConfigService`; no `process.env` anywhere else.
+- Errors are thrown as typed domain exceptions and turned into RFC 9457 responses by one global filter.
+
+**Frontend (Next.js)**
+- Server Components by default; `"use client"` only for interactive pieces.
+- Code is grouped by feature (`features/transfers/{components,hooks,api}`), not by file type.
+- All API calls go through the generated client. No hand-written `fetch` URLs.
+- Shared visual pieces live in `packages/ui`; feature folders never restyle them inline.
+
+---
+
+## 5. Domain model
+
+```
+Organization 1───* Membership *───1 User
+     │                  (role)
+     │ 1
+     ├───* Product 1───* Batch 1───* Pack
+     │                                 │
+     │                                 ├───* LedgerEvent   (append-only, hash chained)
+     │                                 └───* Scan          (public verification hits)
+     │
+     └───* Transfer (from_org → to_org) 1───* TransferItem ───1 Pack
+```
+
+| Entity | Key fields |
+|---|---|
+| `Organization` | `type` (MANUFACTURER, DISTRIBUTOR, WHOLESALER, PHARMACY), `status` (PENDING, APPROVED, SUSPENDED), license number |
+| `User` | email, password hash, `isPlatformAdmin` |
+| `Membership` | user, organization, `role` (OWNER, ADMIN, STAFF) |
+| `Product` | manufacturer org, name, strength, dosage form, storage instructions |
+| `Batch` | product, batch number, manufacture date, expiry date, `status` (ACTIVE, RECALLED) |
+| `Pack` | public ID (e.g. `MED-2026-000123`), batch, `currentOwnerOrgId`, `status` (IN_STOCK, IN_TRANSIT, DISPENSED, RECALLED) |
+| `Transfer` | from org, to org, `status` (PENDING, ACCEPTED, REJECTED, CANCELLED) |
+| `LedgerEvent` | pack, type (REGISTERED, TRANSFER_SENT, TRANSFER_RECEIVED, DISPENSED, RECALLED), actor, payload, `prevHash`, `hash` |
+| `Scan` | pack, timestamp, coarse location (country/city from IP), user agent hash |
+| `AuditLog` | actor, action, entity, before/after, IP, request ID |
+
+Notes:
+- **Pack ownership** lives on `Pack.currentOwnerOrgId` for fast lookups. The ledger is the history; the column is a cache of the latest state. Both change inside one database transaction.
+- `AuditLog` covers admin and account actions (who approved an org, who changed a role). `LedgerEvent` covers what happened to a pack. They are kept apart on purpose.
+
+---
+
+## 6. Key design decisions
+
+### 6.1 Tamper-evident ledger without a blockchain
+
+Every `LedgerEvent` stores the hash of the event before it:
+
+```
+hash = SHA-256( prevHash ‖ packId ‖ type ‖ actorOrgId ‖ canonicalJSON(payload) ‖ createdAt )
+```
+
+- The chain is per pack, so writes to different packs don't block each other.
+- A Postgres trigger rejects `UPDATE` and `DELETE` on `ledger_events`, and the app's database role only has `INSERT` and `SELECT` on that table.
+- `GET /packs/:id/ledger/verify` recomputes the chain and reports the first broken link.
+- A nightly job computes a daily root hash over all of the day's events and stores it. Publishing that root (for example, as a signed Git commit) is an optional extra.
+
+This gives most of what a blockchain gives in this context (proof that history wasn't quietly edited) at a fraction of the cost. The trade-off is that it trusts the platform operator, which is fine for an MVP. The design is recorded in `docs/adr/0001-hash-chain-over-blockchain.md`.
+
+### 6.2 Signed QR codes
+
+A QR code encodes a URL:
+
+```
+https://<web-domain>/v/MED-2026-000123?s=<signature>
+```
+
+- `signature` is an Ed25519 signature of the pack ID, made with a private key held only by the API.
+- A guessed or edited pack ID fails the check right away, without a database call.
+- Ed25519 instead of HMAC means the public key can be published, so anyone can check a signature offline.
+- The signing key is loaded from a secret, and every signature carries a key ID (`kid`) so keys can be rotated.
+
+### 6.3 Clone detection
+
+A real signature on a copied label still looks valid, so the scan history is used too:
+- Each scan is recorded with a coarse location and time.
+- The verify result is downgraded to **Warning** when a pack:
+  - is scanned in two far-apart cities within a short time,
+  - goes past a scan-count threshold,
+  - is scanned after it was marked `DISPENSED`, or
+  - is scanned while still in transit and not yet at a pharmacy.
+- These are simple rules for now. The AI phase can replace them later.
+
+### 6.4 Transfers are two-step
+
+1. The sender creates a transfer and its packs move to `IN_TRANSIT`.
+2. The receiver accepts or rejects it.
+3. On accept, ownership moves and ledger events are written, all in one database transaction.
+
+Rules enforced in the service layer and backed by database constraints:
+- Only the current owner can send a pack.
+- A pack can be in at most one open transfer (partial unique index).
+- Recalled or expired packs can't be transferred.
+- The allowed flow is Manufacturer → Distributor → Wholesaler → Pharmacy. Skipping a step (for example, Distributor → Pharmacy) is allowed through a configurable rule set.
+
+Transfer requests take an `Idempotency-Key` header so a retried request doesn't create a duplicate.
+
+### 6.5 Auth and authorization
+
+- **Tokens:** short-lived access token (15 min) and rotating refresh token (7 days), both in `httpOnly`, `Secure`, `SameSite=Lax` cookies. Refresh tokens are stored hashed, and reusing an old one revokes the whole session family.
+- **Passwords:** argon2id. Login is rate-limited per IP and per account.
+- **Authorization:** three layers.
+  1. `JwtAuthGuard`: is the user logged in?
+  2. `RolesGuard`: does the user's role allow this action?
+  3. **Org scoping:** every query filters by the caller's organization, done in the service layer, so a pharmacy can never read a distributor's stock by changing an ID in the URL.
+- An organization can't do anything until a platform admin approves it.
+
+### 6.6 Public verification endpoint
+
+`GET /verify/:packId?s=...` is the only public, unauthenticated data endpoint.
+- Rate-limited per IP through Redis.
+- Returns a minimal, safe view: product, batch, expiry, recall status, verdict, storage instructions. It never returns the owner's identity or internal IDs.
+- Verdicts: `VERIFIED`, `WARNING` (with a plain-language reason), `NOT_RECOGNIZED`.
+- Batch-level results are cached in Redis for a short time. Scan recording is pushed to a queue so the response stays fast.
+
+---
+
+## 7. API overview
+
+REST, versioned under `/api/v1`, documented at `/api/docs`.
+
+| Area | Endpoints (examples) |
+|---|---|
+| Auth | `POST /auth/signup`, `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`, `GET /auth/me` |
+| Organizations | `POST /organizations`, `GET /organizations/:id`, `POST /admin/organizations/:id/approve` |
+| Members | `POST /organizations/:id/invites`, `PATCH /memberships/:id` |
+| Products and batches | `POST /products`, `POST /products/:id/batches`, `GET /batches/:id` |
+| Packs | `POST /batches/:id/packs` (bulk create), `GET /packs/:id`, `GET /packs/:id/ledger`, `GET /packs/:id/ledger/verify` |
+| QR export | `POST /batches/:id/qr-export` (queued job) → `GET /jobs/:id` |
+| Transfers | `POST /transfers`, `POST /transfers/:id/accept`, `POST /transfers/:id/reject`, `GET /transfers?direction=incoming` |
+| Pharmacy | `POST /packs/:id/dispense` |
+| Verification | `GET /verify/:packId` (public) |
+| Health | `GET /health/live`, `GET /health/ready` |
+
+Errors follow RFC 9457 (Problem Details) so every error response has the same shape.
+
+---
+
+## 8. Background jobs (BullMQ)
+
+| Job | Trigger | What it does |
+|---|---|---|
+| `qr-export` | Manufacturer requests labels | Signs pack IDs, renders a printable PDF / ZIP of QR images, stores it, returns a download link |
+| `record-scan` | Every public verify call | Saves the scan, runs clone-detection rules |
+| `send-email` | Invites, approvals, transfer notices | Sends transactional email |
+| `ledger-daily-root` | Nightly cron | Computes and stores the daily root hash |
+
+Jobs retry with exponential backoff and go to a dead-letter queue after the last failure.
+
+---
+
+## 9. Security checklist
+
+- All input validated with Zod/class-validator at the API edge. Unknown fields are rejected.
+- Helmet security headers, strict CORS (web origin only), CSRF protection for cookie-based auth.
+- Secrets only in environment variables, validated at boot. The app refuses to start if one is missing.
+- Least-privilege database role. Ledger table is insert-only.
+- Rate limiting on auth and public verify routes.
+- Dependabot alerts on the GitHub repo.
+- No personal data on the public verify response.
+
+---
+
+## 10. UI and design system
+
+The UI has to look like a real product a pharma company would pay for. That means calm, dense and precise, closer to Stripe Dashboard or Linear than to a template.
+
+**Things we never ship**
+- Purple/blue gradients, glassmorphism, glowing blobs, or decorative 3D shapes.
+- Emoji as icons, or a different icon style on every screen.
+- Centered "hero card" layouts inside the app, or every screen built from identical rounded cards with big shadows.
+- Default shadcn look left untouched, or placeholder copy like "Welcome back! 👋".
+- Spinners as the only loading state, or blank screens when there is no data.
+
+**Visual language**
+- **Type:** one sans-serif family (Geist Sans) for UI and Geist Mono for pack IDs, batch numbers and hashes. Numbers use tabular figures so columns line up.
+- **Color:** a neutral grey base with one brand accent (deep teal). Green, amber and red are reserved for status only: Verified, Warning, Not recognized / Recalled. Status is always shown with an icon and text too, never color alone.
+- **Tokens:** colors, spacing, radius and shadows are CSS variables in `packages/ui`, with light and dark themes from day one.
+- **Density:** 14px base text in dashboards, compact tables, consistent 4px spacing grid.
+
+**App shell (dashboards)**
+- Left sidebar with role-specific navigation, top bar with org switcher, global search (pack ID / batch number) and user menu. `Cmd/Ctrl + K` opens a command palette.
+- Data tables with server-side sorting, filters, pagination, column visibility and row actions. Bulk actions for multi-pack transfers.
+- Every screen has designed loading (skeletons matching the layout), empty (explains what to do next, with the action button) and error (what went wrong and how to retry) states.
+
+**Signature screens**
+- **Pack timeline:** a vertical timeline of every ledger event (registered → sent → received → dispensed), each with org, time and actor, plus a "Chain intact" badge from the hash-chain check.
+- **Transfer flow:** select packs (scan or search) → choose receiver → review → confirm, with the incoming side showing a clear accept/reject inbox.
+- **Patient verify page (`/v/[packId]`):** mobile-first. The verdict is the first and largest thing on screen, written in plain language, followed by product, batch, expiry, recall notice and storage instructions. Server-rendered, minimal JavaScript, fast on a cheap phone over a slow connection.
+- **Manufacturer overview:** batches, packs registered, packs in the chain by stage, recent warnings.
+
+**Interaction and accessibility**
+- Keyboard accessible throughout, visible focus rings, WCAG AA contrast in both themes.
+- Forms validate inline as the user types (same Zod schema as the API) and keep their input on errors.
+- Toasts only confirm background results; destructive actions (reject transfer, recall batch) use a confirm dialog that names what will happen.
+- Subtle, quick motion (150 to 200ms) for state changes only. Respects `prefers-reduced-motion`.
+
+---
+
+## 11. Environments and deployment
+
+| Environment | Web | API + worker | Database | Redis |
+|---|---|---|---|---|
+| Local | `next dev` | `nest start --watch` | Docker Postgres | Docker Redis |
+| Production | Vercel | Oracle VM (Docker Compose) | Neon | Redis container on the VM |
+
+**Web:** Vercel deploys the `main` branch through its built-in GitHub integration.
+
+**API and worker:** `infra/deploy.sh` does a one-command deploy over SSH:
+1. Pull the latest code on the VM.
+2. Build the Docker images on the VM itself (it is ARM, so images are built natively).
+3. Run Prisma migrations against Neon.
+4. Restart `api` and `worker` with `docker compose up -d`, waiting for `/health/ready` before reporting success.
+5. Keep the previous image tagged so a rollback is one command.
+
+**Oracle VM setup:** Ubuntu on an Ampere A1 instance, Docker Compose running `api`, `worker`, `redis` (with AOF persistence) and `caddy` (reverse proxy with automatic Let's Encrypt certificates). Only ports 80 and 443 are open; SSH is key-only. Unattended security upgrades are on. Redis is never exposed to the internet.
+
+Database migrations run as a separate deploy step before the new API version starts.
+
+---
+
+## 12. Observability
+
+- pino JSON logs with a request ID that flows from web → API → worker.
+- Sentry on web and API for errors and slow transactions.
+- `/health/live` and `/health/ready` (ready checks Postgres and Redis).
+- A small admin metrics page: registered packs, transfers per day, scans per day, warnings raised.
+
+---
+
+## 13. Demo data
+
+A seed script creates a full demo world so visitors can try the app without signing up:
+- One manufacturer, distributor, wholesaler and pharmacy, each with a demo login.
+- Products and batches, including one recalled batch and one near-expiry batch.
+- Packs at every stage of the chain, plus one "cloned" pack that triggers a warning.
+- A public demo page with sample QR codes for each verdict.
+
+---
+
+## 14. Phase 1 deliverables (from this document)
+
+- Monorepo skeleton with `apps/web`, `apps/api`, `packages/shared`, `packages/config`
+- `docker-compose.yml` for local Postgres and Redis
+- Prisma schema for `Organization`, `User`, `Membership`, `AuditLog`
+- Auth module (signup, login, refresh, logout, me) with guards
+- Organization onboarding and admin approval
+- Role-based empty dashboards in the web app
+- `packages/ui` with design tokens, themes and the app shell
+- Health endpoints, pino logging, Sentry
+- Production deployment: Vercel for web, Oracle VM with `deploy.sh` for API, worker and Redis

@@ -6,7 +6,8 @@
 - Login/Signup aur role-based access (kaun kya kar sakta hai)
 - Organizations/participants ka registration aur admin approval
 - Audit log ka basic system (har action record ho)
-- Dev/staging environments aur CI/CD pipeline
+- Design system (colors, fonts, components) aur app shell (sidebar, top bar)
+- Local dev setup (Docker) aur production deployment (Vercel + Oracle VM)
 
 **Phase complete jab:** Har role ka banda login kar ke apna khali dashboard dekh sake.
 
@@ -47,15 +48,15 @@
 
 ---
 
-### Phase 5: MVP Testing & Launch 🚀
-**Maqsad:** Core system ko production-ready banana.
-- End-to-end testing, security review aur penetration testing
-- Performance/load testing
-- Pilot run: ek manufacturer aur kuch pharmacies ke saath real use
-- Feedback ke mutabiq fixes
-- Production deployment, monitoring aur backups
+### Phase 5: MVP Polish & Launch 🚀
+**Maqsad:** Core system ko production-ready aur portfolio-ready banana.
+- Security hardening (rate limits, headers, permissions ka review)
+- Performance (verify page fast ho, slow queries theek hon)
+- UI polish: har screen ke loading, empty aur error states, dark mode, mobile
+- Demo seed data aur har role ke demo logins
+- Final production deployment, monitoring aur backups
 
-**Phase complete jab:** MVP live ho aur pilot users kamyabi se use kar rahe hon.
+**Phase complete jab:** MVP live ho aur koi bhi visitor demo login se poora flow chala sake.
 
 ---
 
