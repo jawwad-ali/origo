@@ -322,7 +322,21 @@ The UI has to look like a real product a pharma company would pay for. That mean
 
 **Visual language**
 - **Type:** one sans-serif family (Geist Sans) for UI and Geist Mono for pack IDs, batch numbers and hashes. Numbers use tabular figures so columns line up.
-- **Color:** a neutral grey base with one brand accent (deep teal). Green, amber and red are reserved for status only: Verified, Warning, Not recognized / Recalled. Status is always shown with an icon and text too, never color alone.
+- **Color:** a neutral grey base (slightly cool) with one brand accent, **Deep Petrol**. Green, amber and red are reserved for status only: Verified, Warning, Not recognized / Recalled. Petrol sits between blue and teal, far enough from the Verified green that a primary button never reads as a status. Status is always shown with an icon and text too, never color alone.
+
+  | Token | Light | Dark |
+  |---|---|---|
+  | `accent` | `#155E75` | `#5EC4DA` |
+  | `accent-soft` (active nav, tags) | `#E2F0F4` | `#12303A` |
+  | `on-accent` (text on accent) | `#FFFFFF` | `#062028` |
+  | `background` | `#F5F7F8` | `#0A1216` |
+  | `surface` | `#FFFFFF` | `#101B20` |
+  | `border` | `#DDE3E6` | `#23343B` |
+  | `foreground` | `#0F1D24` | `#E5EDF0` |
+  | `muted-foreground` | `#5A6A72` | `#8DA0A8` |
+  | `success` (Verified) | `#15803D` | `#4ADE80` |
+  | `warning` | `#B45309` | `#FBBF24` |
+  | `danger` (Recalled / Not recognized) | `#B91C1C` | `#F87171` |
 - **Tokens:** colors, spacing, radius and shadows are CSS variables in `packages/ui`, with light and dark themes from day one.
 - **Density:** 14px base text in dashboards, compact tables, consistent 4px spacing grid.
 
