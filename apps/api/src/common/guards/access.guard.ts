@@ -1,9 +1,10 @@
 import { type CanActivate, type ExecutionContext, Injectable } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
-import { type MembershipRole } from "@origo/shared";
+import { type MembershipRole, type OrgType } from "@origo/shared";
 import {
   APPROVED_ORG_KEY,
   IS_PUBLIC_KEY,
+  ORG_TYPES_KEY,
   PLATFORM_ADMIN_KEY,
   ROLES_KEY,
 } from "../decorators/access.decorators";
@@ -12,7 +13,7 @@ import { type AuthenticatedRequest, type Principal } from "../types/principal";
 
 /**
  * Authorization, run after authentication. Reads the route's access metadata
- * (@PlatformAdminOnly, @RequireApprovedOrg, @Roles) and checks it against the principal.
+ * (@PlatformAdminOnly, @RequireApprovedOrg, @Roles, @OrgTypes) and checks it against the principal.
  */
 @Injectable()
 export class AccessGuard implements CanActivate {
@@ -31,10 +32,18 @@ export class AccessGuard implements CanActivate {
     }
 
     const roles = this.reflector.getAllAndOverride<MembershipRole[] | undefined>(ROLES_KEY, targets);
+    const orgTypes = this.reflector.getAllAndOverride<OrgType[] | undefined>(ORG_TYPES_KEY, targets);
     const needsApprovedOrg =
-      this.reflector.getAllAndOverride<boolean>(APPROVED_ORG_KEY, targets) || Boolean(roles);
+      this.reflector.getAllAndOverride<boolean>(APPROVED_ORG_KEY, targets) ||
+      Boolean(roles) ||
+      Boolean(orgTypes);
 
     if (needsApprovedOrg) this.assertApprovedOrg(principal);
+    if (orgTypes && !orgTypes.includes(principal.membership?.orgType as OrgType)) {
+      throw new ForbiddenActionException(
+        "This is only available to " + orgTypes.map((t) => t.toLowerCase() + "s").join(" and ") + ".",
+      );
+    }
     if (roles && !roles.includes(principal.membership?.role as MembershipRole)) {
       throw new ForbiddenActionException("Your role in this organization can't do this.");
     }

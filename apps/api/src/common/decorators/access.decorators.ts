@@ -1,5 +1,5 @@
 import { SetMetadata } from "@nestjs/common";
-import { type MembershipRole } from "@origo/shared";
+import { type MembershipRole, type OrgType } from "@origo/shared";
 
 export const IS_PUBLIC_KEY = "access:isPublic";
 export const PLATFORM_ADMIN_KEY = "access:platformAdmin";
@@ -19,3 +19,9 @@ export const RequireApprovedOrg = (): MethodDecorator & ClassDecorator => SetMet
 /** The caller must hold one of these roles in an approved organization. */
 export const Roles = (...roles: MembershipRole[]): MethodDecorator & ClassDecorator =>
   SetMetadata(ROLES_KEY, roles);
+
+export const ORG_TYPES_KEY = "access:orgTypes";
+
+/** The caller's approved organization must be one of these types (e.g. only manufacturers register batches). */
+export const OrgTypes = (...types: OrgType[]): MethodDecorator & ClassDecorator =>
+  SetMetadata(ORG_TYPES_KEY, types);

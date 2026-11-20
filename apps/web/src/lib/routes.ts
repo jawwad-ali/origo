@@ -4,10 +4,15 @@ export const ROUTES = {
   signup: "/signup",
   dashboard: "/dashboard",
   adminOrganizations: "/admin/organizations",
+  products: "/products",
+  batches: "/batches",
 } as const;
 
+export const productPath = (id: string): string => `/products/${encodeURIComponent(id)}`;
+export const batchPath = (id: string): string => `/batches/${encodeURIComponent(id)}`;
+
 /** Pages that need a signed-in user. */
-export const PROTECTED_PREFIXES = ["/dashboard", "/admin"] as const;
+export const PROTECTED_PREFIXES = ["/dashboard", "/admin", "/products", "/batches"] as const;
 
 /** Pages a signed-in user shouldn't see (they get sent to the dashboard). */
 export const GUEST_ONLY_PREFIXES = ["/login", "/signup"] as const;

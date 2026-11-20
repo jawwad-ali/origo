@@ -10,3 +10,26 @@ export type OrgStatus = (typeof ORG_STATUSES)[number];
 
 export const MEMBERSHIP_ROLES = ["OWNER", "ADMIN", "STAFF"] as const;
 export type MembershipRole = (typeof MEMBERSHIP_ROLES)[number];
+
+export const DOSAGE_FORMS = [
+  "TABLET",
+  "CAPSULE",
+  "SYRUP",
+  "SUSPENSION",
+  "INJECTION",
+  "CREAM",
+  "OINTMENT",
+  "DROPS",
+  "INHALER",
+  "OTHER",
+] as const;
+export type DosageForm = (typeof DOSAGE_FORMS)[number];
+
+export const BATCH_STATUSES = ["ACTIVE", "RECALLED"] as const;
+export type BatchStatus = (typeof BATCH_STATUSES)[number];
+
+export const PACK_STATUSES = ["IN_STOCK", "IN_TRANSIT", "DISPENSED", "RECALLED"] as const;
+export type PackStatus = (typeof PACK_STATUSES)[number];
+
+export const LABEL_EXPORT_STATUSES = ["QUEUED", "PROCESSING", "READY", "FAILED"] as const;
+export type LabelExportStatus = (typeof LABEL_EXPORT_STATUSES)[number];

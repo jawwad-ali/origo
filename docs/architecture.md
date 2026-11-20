@@ -214,13 +214,15 @@ This gives most of what a blockchain gives in this context (proof that history w
 A QR code encodes a URL:
 
 ```
-https://<web-domain>/v/MED-2026-000123?s=<signature>
+https://<web-domain>/v/MED-2026-000123?k=k1&s=<signature>
 ```
 
-- `signature` is an Ed25519 signature of the pack ID, made with a private key held only by the API.
+- `s` is an Ed25519 signature of `"<k>.<packId>"`, made with a private key held only by the API and worker. Including the key ID in the signed message stops a signature being replayed under another key.
+- `k` is the key ID, so keys can be rotated. Old keys must stay available for verification, or labels already printed stop verifying.
 - A guessed or edited pack ID fails the check right away, without a database call.
-- Ed25519 instead of HMAC means the public key can be published, so anyone can check a signature offline.
-- The signing key is loaded from a secret, and every signature carries a key ID (`kid`) so keys can be rotated.
+- Ed25519 is deterministic: the same pack always gets the same QR, so nothing per pack is stored. Unlike HMAC, the public key can be published for offline checks.
+- Pack IDs come from one Postgres sequence (`pack_serial_seq`) shared by all manufacturers, so they are unique platform-wide and never reused. Gaps are expected when a registration rolls back.
+- The URL is about 135 characters, which encodes as a version 7 QR code (45 × 45 modules): about 27 mm on the label, comfortably scannable by phone cameras.
 
 ### 6.3 Clone detection
 
@@ -276,18 +278,18 @@ Transfer requests take an `Idempotency-Key` header so a retried request doesn't 
 
 REST, versioned under `/api/v1`, documented at `/api/docs`.
 
-| Area                 | Endpoints (examples)                                                                                               |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| Auth                 | `POST /auth/signup`, `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`, `GET /auth/me`                 |
-| Organizations        | `POST /organizations`, `GET /organizations/:id`, `POST /admin/organizations/:id/approve`                           |
-| Members              | `POST /organizations/:id/invites`, `PATCH /memberships/:id`                                                        |
-| Products and batches | `POST /products`, `POST /products/:id/batches`, `GET /batches/:id`                                                 |
-| Packs                | `POST /batches/:id/packs` (bulk create), `GET /packs/:id`, `GET /packs/:id/ledger`, `GET /packs/:id/ledger/verify` |
-| QR export            | `POST /batches/:id/qr-export` (queued job) → `GET /jobs/:id`                                                       |
-| Transfers            | `POST /transfers`, `POST /transfers/:id/accept`, `POST /transfers/:id/reject`, `GET /transfers?direction=incoming` |
-| Pharmacy             | `POST /packs/:id/dispense`                                                                                         |
-| Verification         | `GET /verify/:packId` (public)                                                                                     |
-| Health               | `GET /health/live`, `GET /health/ready`                                                                            |
+| Area                 | Endpoints (examples)                                                                                                                      |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Auth                 | `POST /auth/signup`, `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`, `GET /auth/me`                                        |
+| Organizations        | `POST /organizations`, `GET /organizations/:id`, `POST /admin/organizations/:id/approve`                                                  |
+| Members              | `POST /organizations/:id/invites`, `PATCH /memberships/:id`                                                                               |
+| Products and batches | `POST /products`, `GET /products`, `POST /products/:id/batches` (creates the batch and all its packs), `GET /batches`, `GET /batches/:id` |
+| Packs                | `GET /batches/:id/packs`, `GET /batches/:id/label-preview`; Phase 3 adds `GET /packs/:id/ledger` and `GET /packs/:id/ledger/verify`       |
+| Label export         | `POST /batches/:id/label-exports` (queued, 202) → `GET /label-exports/:id` → `GET /label-exports/:id/file`                                |
+| Transfers            | `POST /transfers`, `POST /transfers/:id/accept`, `POST /transfers/:id/reject`, `GET /transfers?direction=incoming`                        |
+| Pharmacy             | `POST /packs/:id/dispense`                                                                                                                |
+| Verification         | `GET /verify/:packId` (public)                                                                                                            |
+| Health               | `GET /health/live`, `GET /health/ready`                                                                                                   |
 
 Errors follow RFC 9457 (Problem Details) so every error response has the same shape.
 
@@ -295,14 +297,15 @@ Errors follow RFC 9457 (Problem Details) so every error response has the same sh
 
 ## 8. Background jobs (BullMQ)
 
-| Job                 | Trigger                              | What it does                                                                                   |
-| ------------------- | ------------------------------------ | ---------------------------------------------------------------------------------------------- |
-| `qr-export`         | Manufacturer requests labels         | Signs pack IDs, renders a printable PDF / ZIP of QR images, stores it, returns a download link |
-| `record-scan`       | Every public verify call             | Saves the scan, runs clone-detection rules                                                     |
-| `send-email`        | Invites, approvals, transfer notices | Sends transactional email                                                                      |
-| `ledger-daily-root` | Nightly cron                         | Computes and stores the daily root hash                                                        |
+| Job                             | Trigger                              | What it does                                                                                                                                    |
+| ------------------------------- | ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `label-exports:build`           | Manufacturer requests labels         | Streams the batch's pack IDs, signs each, draws vector QR labels onto A4 21-up sheets (Avery L7160 layout), writes the PDF to the shared volume |
+| `label-exports:cleanup-expired` | Hourly scheduler                     | Deletes PDFs older than `LABEL_EXPORT_TTL_HOURS` (24 h)                                                                                         |
+| `record-scan`                   | Every public verify call             | Saves the scan, runs clone-detection rules                                                                                                      |
+| `send-email`                    | Invites, approvals, transfer notices | Sends transactional email                                                                                                                       |
+| `ledger-daily-root`             | Nightly cron                         | Computes and stores the daily root hash                                                                                                         |
 
-Jobs retry with exponential backoff and go to a dead-letter queue after the last failure.
+Jobs retry three times with exponential backoff; after the last failure the export is marked `FAILED` with a message the user sees. If Redis doesn't answer within 5 seconds when a job is queued, the request returns 503 instead of hanging. A 5,000-label PDF takes about 10 seconds and 14 MB.
 
 ---
 
@@ -429,4 +432,14 @@ A seed script creates a full demo world so visitors can try the app without sign
 - Health endpoints, pino logging with request IDs, Sentry
 - Production deployment: Vercel for web, Oracle VM with `deploy.sh` for the API
 
-Redis, BullMQ and the worker process arrive in Phase 2, with the first background job (QR export). Phase 1 rate limiting is in-memory, which is correct while one API container runs.
+Phase 1 rate limiting is in-memory, which is correct while one API container runs.
+
+## 15. Phase 2 deliverables
+
+- `Product`, `Batch`, `Pack`, `LabelExport` models; `pack_serial_seq`; date and count check constraints
+- Manufacturer-only routes via `@OrgTypes("MANUFACTURER")` in the access guard
+- Batch registration that creates the batch and up to 5,000 packs in one transaction
+- Ed25519 QR signing (`QrSigningService`) with key rotation support and a key-generation script
+- Redis + BullMQ queue, a separate worker process (`dist/worker.js`) and the label PDF builder
+- Web: products list and detail, batches list and detail, live label preview with the real signed QR, label export with progress and download
+- Compose: Redis and the worker in development and production, a shared volume for PDFs

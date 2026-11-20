@@ -10,11 +10,14 @@ import {
   ShieldAlert,
   Truck,
 } from "lucide-react";
+import { ROUTES } from "@/lib/routes";
 
 export interface WorkflowStep {
   title: string;
   description: string;
   icon: LucideIcon;
+  /** Set once the feature has shipped; the step then links to it. */
+  href?: string;
 }
 
 /** What each role does on Origo, in order. Shown on the overview until the features ship. */
@@ -24,16 +27,19 @@ export const ROLE_WORKFLOWS: Record<OrgType, WorkflowStep[]> = {
       title: "Add your products",
       description: "Name, strength, dosage form and storage rules.",
       icon: PackagePlus,
+      href: ROUTES.products,
     },
     {
       title: "Register a batch",
       description: "Each pack in the batch gets its own signed identity.",
       icon: Boxes,
+      href: ROUTES.products,
     },
     {
       title: "Print QR labels",
       description: "Export print-ready labels for the packaging line.",
       icon: QrCode,
+      href: ROUTES.batches,
     },
     {
       title: "Ship to distributors",

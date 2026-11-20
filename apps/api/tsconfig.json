@@ -5,5 +5,5 @@
     "baseUrl": "./",
     "rootDir": "./"
   },
-  "include": ["src", "prisma"]
+  "include": ["src", "prisma", "scripts"]
 }

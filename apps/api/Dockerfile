@@ -36,6 +36,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-cert
 ENV NODE_ENV=production PORT=4000
 WORKDIR /app
 COPY --from=build --chown=node:node /out ./
+# Mount point for the shared label-PDF volume; a new named volume inherits this ownership.
+RUN mkdir -p /app/var/label-exports && chown -R node:node /app/var
 USER node
 EXPOSE 4000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \

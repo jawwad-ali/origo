@@ -3,29 +3,64 @@
 #   docker compose -f infra/docker-compose.prod.yml --env-file infra/.env.production up -d
 name: origo
 
+x-app: &app
+  build:
+    context: ..
+    dockerfile: apps/api/Dockerfile
+  image: origo-api:${IMAGE_TAG:-latest}
+  env_file: .env.production
+  environment: &app-env
+    NODE_ENV: production
+    REDIS_URL: redis://redis:6379
+    LABEL_EXPORT_DIR: /app/var/label-exports
+  depends_on:
+    redis:
+      condition: service_healthy
+  volumes:
+    - label_exports:/app/var/label-exports
+  restart: always
+  read_only: true
+  tmpfs:
+    - /tmp
+  security_opt:
+    - no-new-privileges:true
+  logging:
+    driver: json-file
+    options: { max-size: "10m", max-file: "5" }
+
 services:
   api:
-    build:
-      context: ..
-      dockerfile: apps/api/Dockerfile
-    image: origo-api:${IMAGE_TAG:-latest}
-    env_file: .env.production
+    <<: *app
     environment:
-      NODE_ENV: production
+      <<: *app-env
       PORT: "4000"
       COOKIE_SECURE: "true"
       TRUST_PROXY_HOPS: "2"
     expose:
       - "4000"
+
+  # Same image, different entry point: consumes the job queues (label PDFs, cleanup).
+  worker:
+    <<: *app
+    command: ["node", "dist/worker.js"]
+    healthcheck:
+      disable: true
+    stop_grace_period: 60s
+
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
     restart: always
-    read_only: true
-    tmpfs:
-      - /tmp
-    security_opt:
-      - no-new-privileges:true
     logging:
       driver: json-file
-      options: { max-size: "10m", max-file: "5" }
+      options: { max-size: "10m", max-file: "3" }
 
   caddy:
     image: caddy:2.10-alpine
@@ -51,3 +86,5 @@ services:
 volumes:
   caddy_data:
   caddy_config:
+  redis_data:
+  label_exports:

@@ -12,29 +12,30 @@ Every medicine pack gets a unique digital identity (QR code). Manufacturers, dis
 | Part                       | Tech                                                                     |
 | -------------------------- | ------------------------------------------------------------------------ |
 | Web (`apps/web`)           | Next.js 15 (App Router), Tailwind CSS v4, shadcn/ui                      |
-| API (`apps/api`)           | NestJS 11, Prisma 6, PostgreSQL 16                                       |
+| API (`apps/api`)           | NestJS 11, Prisma 6, PostgreSQL 16, BullMQ + Redis (worker process)      |
 | Shared (`packages/shared`) | Zod schemas and DTO types used by both apps                              |
 | Hosting                    | Vercel (web), Oracle Cloud VM with Docker + Caddy (API), Neon (Postgres) |
 
 ## Running locally
 
-Requirements: Node 22+, pnpm 10, and PostgreSQL 16 (Docker or a Neon dev branch).
+Requirements: Node 22+, pnpm 10, Docker (for Redis), and PostgreSQL 16 (Docker or a Neon dev branch).
 
 ```bash
 pnpm install
 
-# 1. Database: Docker below, or a Neon dev branch (put its URLs in apps/api/.env, see .env.example)
+# 1. Redis (job queue). Add --profile postgres to also run a local Postgres instead of Neon.
 docker compose -f infra/docker-compose.dev.yml up -d
 
 # 2. Environment
-cp apps/api/.env.example apps/api/.env        # set JWT_ACCESS_SECRET
+cp apps/api/.env.example apps/api/.env        # set JWT_ACCESS_SECRET and the database URLs
+pnpm --filter @origo/api qr:keygen            # paste QR_SIGNING_PRIVATE_KEY into apps/api/.env
 cp apps/web/.env.example apps/web/.env.local
 
 # 3. Schema and demo data
 pnpm db:migrate
 pnpm db:seed
 
-# 4. Start web (http://localhost:3000) and API (http://localhost:4000)
+# 4. Start web (http://localhost:3000), API (http://localhost:4000) and the worker
 pnpm dev
 ```
 

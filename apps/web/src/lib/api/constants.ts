@@ -10,4 +10,7 @@ export const API_ROUTES = {
   logout: "/auth/logout",
   me: "/auth/me",
   adminOrganizations: "/admin/organizations",
+  products: "/products",
+  batches: "/batches",
+  labelExports: "/label-exports",
 } as const;

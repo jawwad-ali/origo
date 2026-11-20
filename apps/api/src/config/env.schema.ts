@@ -21,6 +21,20 @@ export const envSchema = z.object({
   TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(5).default(1),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
   SENTRY_DSN: z.string().optional().default(""),
+
+  /** Redis for BullMQ job queues. */
+  REDIS_URL: z.url().default("redis://localhost:6379"),
+
+  /** Public base of the patient verification page; QR codes point here. */
+  VERIFY_BASE_URL: z.url(),
+  /** Ed25519 key that signs QR codes. Base64 of a PKCS#8 DER private key; see scripts/generate-qr-key.ts. */
+  QR_SIGNING_PRIVATE_KEY: z.string().min(40, "QR_SIGNING_PRIVATE_KEY is missing"),
+  /** Short ID printed with each signature so keys can be rotated. */
+  QR_SIGNING_KEY_ID: z.string().regex(/^[a-z0-9]{1,8}$/, "Use 1-8 lowercase letters or digits"),
+
+  /** Where finished label PDFs are written. Shared by the API (download) and the worker (write). */
+  LABEL_EXPORT_DIR: z.string().min(1).default("./var/label-exports"),
+  LABEL_EXPORT_TTL_HOURS: z.coerce.number().int().positive().default(24),
 });
 
 export type Env = z.infer<typeof envSchema>;

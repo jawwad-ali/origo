@@ -8,7 +8,11 @@ import { buildLoggerParams } from "./logger.config";
 import { AdminModule } from "./modules/admin/admin.module";
 import { AuditModule } from "./modules/audit/audit.module";
 import { AuthModule } from "./modules/auth/auth.module";
+import { BatchesModule } from "./modules/batches/batches.module";
 import { HealthModule } from "./modules/health/health.module";
+import { LabelExportsModule } from "./modules/label-exports/label-exports.module";
+import { ProductsModule } from "./modules/products/products.module";
+import { QrSigningModule } from "./modules/qr-signing/qr-signing.module";
 import { PrismaModule } from "./prisma/prisma.module";
 
 const DEFAULT_RATE_LIMIT = { ttl: 60_000, limit: 120 };
@@ -22,7 +26,11 @@ const DEFAULT_RATE_LIMIT = { ttl: 60_000, limit: 120 };
     PrismaModule,
     AuditModule,
     AuthModule,
+    QrSigningModule,
     AdminModule,
+    ProductsModule,
+    BatchesModule,
+    LabelExportsModule,
     HealthModule,
   ],
 })

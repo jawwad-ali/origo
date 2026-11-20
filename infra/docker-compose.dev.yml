@@ -1,5 +1,6 @@
 # Local development services. Run from the repo root:
 #   docker compose -f infra/docker-compose.dev.yml up -d
+# Postgres is optional if you use a Neon dev branch; Redis is needed for label exports.
 name: origo-dev
 
 services:
@@ -19,6 +20,22 @@ services:
       timeout: 3s
       retries: 10
     restart: unless-stopped
+    profiles: ["postgres"]
+
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
 
 volumes:
   postgres_data:
+  redis_data:

@@ -61,6 +61,9 @@ model Organization {
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
   memberships Membership[]
+  products    Product[]
+  batches     Batch[]
+  ownedPacks  Pack[]       @relation("PackOwner")
 
   @@unique([country, licenseNumber])
   @@index([status, createdAt])
@@ -98,9 +101,9 @@ model Session {
   revokedAt     DateTime?            @map("revoked_at")
   revokedReason SessionRevokeReason? @map("revoked_reason")
   replacedById  String?              @map("replaced_by_id") @db.Uuid
-  userAgent    String?   @map("user_agent")
-  ip           String?
-  createdAt    DateTime  @default(now()) @map("created_at")
+  userAgent     String?              @map("user_agent")
+  ip            String?
+  createdAt     DateTime             @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -126,4 +129,122 @@ model AuditLog {
   @@index([actorUserId])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+enum DosageForm {
+  TABLET
+  CAPSULE
+  SYRUP
+  SUSPENSION
+  INJECTION
+  CREAM
+  OINTMENT
+  DROPS
+  INHALER
+  OTHER
+}
+
+enum BatchStatus {
+  ACTIVE
+  RECALLED
+}
+
+enum PackStatus {
+  IN_STOCK
+  IN_TRANSIT
+  DISPENSED
+  RECALLED
+}
+
+enum LabelExportStatus {
+  QUEUED
+  PROCESSING
+  READY
+  FAILED
+}
+
+/// A medicine a manufacturer makes. Packs are registered against its batches.
+model Product {
+  id                  String     @id @default(uuid(7)) @db.Uuid
+  organizationId      String     @map("organization_id") @db.Uuid
+  name                String
+  genericName         String     @map("generic_name")
+  strength            String
+  dosageForm          DosageForm @map("dosage_form")
+  packSize            String     @map("pack_size")
+  storageInstructions String     @map("storage_instructions")
+  createdById         String     @map("created_by_id") @db.Uuid
+  createdAt           DateTime   @default(now()) @map("created_at")
+  updatedAt           DateTime   @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  batches      Batch[]
+
+  @@unique([organizationId, name, strength, dosageForm])
+  @@index([organizationId, createdAt])
+  @@map("products")
+}
+
+model Batch {
+  id             String      @id @default(uuid(7)) @db.Uuid
+  organizationId String      @map("organization_id") @db.Uuid
+  productId      String      @map("product_id") @db.Uuid
+  batchNumber    String      @map("batch_number")
+  manufacturedOn DateTime    @map("manufactured_on") @db.Date
+  expiresOn      DateTime    @map("expires_on") @db.Date
+  status         BatchStatus @default(ACTIVE)
+  packCount      Int         @map("pack_count")
+  createdById    String      @map("created_by_id") @db.Uuid
+  createdAt      DateTime    @default(now()) @map("created_at")
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  product      Product       @relation(fields: [productId], references: [id], onDelete: Restrict)
+  packs        Pack[]
+  labelExports LabelExport[]
+
+  @@unique([organizationId, batchNumber])
+  @@index([productId])
+  @@index([organizationId, createdAt])
+  @@map("batches")
+}
+
+/// One physical pack. publicId (e.g. MED-2026-000123) is printed in the QR code; serial comes from pack_serial_seq.
+model Pack {
+  id                String     @id @default(uuid(7)) @db.Uuid
+  publicId          String     @unique @map("public_id")
+  serial            Int        @unique
+  batchId           String     @map("batch_id") @db.Uuid
+  currentOwnerOrgId String     @map("current_owner_org_id") @db.Uuid
+  status            PackStatus @default(IN_STOCK)
+  createdAt         DateTime   @default(now()) @map("created_at")
+
+  batch        Batch        @relation(fields: [batchId], references: [id], onDelete: Restrict)
+  currentOwner Organization @relation("PackOwner", fields: [currentOwnerOrgId], references: [id], onDelete: Restrict)
+
+  @@index([batchId, serial])
+  @@index([currentOwnerOrgId, status])
+  @@map("packs")
+}
+
+/// A print-ready PDF of a batch's QR labels, built by the worker and kept for a limited time.
+model LabelExport {
+  id             String            @id @default(uuid(7)) @db.Uuid
+  batchId        String            @map("batch_id") @db.Uuid
+  organizationId String            @map("organization_id") @db.Uuid
+  requestedById  String            @map("requested_by_id") @db.Uuid
+  status         LabelExportStatus @default(QUEUED)
+  labelCount     Int               @map("label_count")
+  filePath       String?           @map("file_path")
+  fileSizeBytes  Int?              @map("file_size_bytes")
+  error          String?
+  createdAt      DateTime          @default(now()) @map("created_at")
+  startedAt      DateTime?         @map("started_at")
+  completedAt    DateTime?         @map("completed_at")
+  expiresAt      DateTime?         @map("expires_at")
+
+  batch Batch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@index([batchId, createdAt])
+  @@index([status, expiresAt])
+  @@map("label_exports")
 }

@@ -1,5 +1,5 @@
 import { SAMPLE_PACK } from "../constants";
-import { qrSvg } from "../lib/qr-svg";
+import { qrSvg } from "@/lib/qr/qr-svg";
 import styles from "./journey-panel.module.css";
 
 /** A medicine carton drawn in CSS 3D, with a real, scannable QR code for the sample pack. */
