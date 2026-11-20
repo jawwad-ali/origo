@@ -1,0 +1,24 @@
+{
+	email {$ACME_EMAIL}
+}
+
+# HTTPS certificates are issued and renewed automatically by Let's Encrypt.
+{$API_DOMAIN} {
+	encode zstd gzip
+
+	header {
+		-Server
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+	}
+
+	@api path /api/v1/*
+	handle @api {
+		reverse_proxy api:4000 {
+			header_up X-Request-Id {http.request.uuid}
+		}
+	}
+
+	handle {
+		respond 404
+	}
+}

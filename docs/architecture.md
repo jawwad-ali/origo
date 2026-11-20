@@ -9,6 +9,7 @@ This document covers the architecture for the MVP (Phases 1 to 5 in [phases.md](
 ## 1. Goals and non-goals
 
 **Goals**
+
 - Production-grade MVP: real auth, real database constraints, monitoring, deployed and publicly usable.
 - A codebase structured to scale: clear module boundaries, typed end to end, no shortcuts that would need a rewrite later.
 - A production-grade UI that looks designed, not generated (see section 10).
@@ -18,6 +19,7 @@ This document covers the architecture for the MVP (Phases 1 to 5 in [phases.md](
 **Out of scope by choice:** CI/CD pipelines and automated test suites. Deployment is scripted instead (see section 11).
 
 **Non-goals (for the MVP)**
+
 - Blockchain, ZKP, NFC, IoT and AI anomaly detection. These are later phases.
 - ERP/WMS integrations and multi-country regulatory compliance.
 - A native mobile app. The patient verification page is a mobile-first web page.
@@ -64,23 +66,23 @@ The API and worker run from the same NestJS codebase with two entry points (`mai
 
 ## 3. Tech stack
 
-| Layer | Choice | Why |
-|---|---|---|
-| Monorepo | pnpm workspaces + Turborepo | One repo, shared types, cached builds |
-| Frontend | Next.js 15 (App Router), TypeScript | Server-rendered verify page loads fast on cheap phones |
-| UI | Tailwind CSS v4 + shadcn/ui (restyled, not default), lucide icons | Accessible primitives we fully own and theme |
-| Tables / forms | TanStack Table, React Hook Form + Zod | Server-side sorting/filtering/pagination, inline validation |
-| Data fetching | TanStack Query + generated API client | Typed end to end, caching, retries |
-| Backend | NestJS 11, TypeScript | Modules, guards and DI fit a role-heavy domain |
-| ORM | Prisma | Typed queries, migrations, good NestJS support |
-| Database | PostgreSQL 16 | Relational data, constraints, triggers, transactions |
-| Queue / cache | Redis + BullMQ | Background jobs, rate limiting, short-lived cache |
-| Validation | Zod (shared package) | One schema for frontend forms and backend DTOs |
-| Auth | Own JWT auth (access + refresh tokens), argon2 | Roles and org approval are core to the domain |
-| API docs | OpenAPI via `@nestjs/swagger` | Live docs and the generated frontend client |
-| Logging / errors | pino (JSON logs), Sentry | Structured logs with request IDs, error tracking |
-| Code quality | ESLint, Prettier, strict TypeScript, Husky pre-commit (lint + typecheck) | Catches problems locally without a CI pipeline |
-| Hosting | Vercel (web), Oracle Cloud Always Free ARM VM (api + worker + Redis via Docker Compose, Caddy for HTTPS), Neon (Postgres) | Free with no expiry or sleeping, managed Postgres with backups |
+| Layer            | Choice                                                                                                                    | Why                                                            |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| Monorepo         | pnpm workspaces                                                                                                           | One repo, shared types, cached builds                          |
+| Frontend         | Next.js 15 (App Router), TypeScript                                                                                       | Server-rendered verify page loads fast on cheap phones         |
+| UI               | Tailwind CSS v4 + shadcn/ui (restyled, not default), lucide icons                                                         | Accessible primitives we fully own and theme                   |
+| Tables / forms   | TanStack Table, React Hook Form + Zod                                                                                     | Server-side sorting/filtering/pagination, inline validation    |
+| Data fetching    | TanStack Query + generated API client                                                                                     | Typed end to end, caching, retries                             |
+| Backend          | NestJS 11, TypeScript                                                                                                     | Modules, guards and DI fit a role-heavy domain                 |
+| ORM              | Prisma                                                                                                                    | Typed queries, migrations, good NestJS support                 |
+| Database         | PostgreSQL 16                                                                                                             | Relational data, constraints, triggers, transactions           |
+| Queue / cache    | Redis + BullMQ                                                                                                            | Background jobs, rate limiting, short-lived cache              |
+| Validation       | Zod (shared package)                                                                                                      | One schema for frontend forms and backend DTOs                 |
+| Auth             | Own JWT auth (access + refresh tokens), argon2                                                                            | Roles and org approval are core to the domain                  |
+| API docs         | OpenAPI via `@nestjs/swagger`                                                                                             | Live docs and the generated frontend client                    |
+| Logging / errors | pino (JSON logs), Sentry                                                                                                  | Structured logs with request IDs, error tracking               |
+| Code quality     | ESLint, Prettier, strict TypeScript, Husky pre-commit (lint + typecheck)                                                  | Catches problems locally without a CI pipeline                 |
+| Hosting          | Vercel (web), Oracle Cloud Always Free ARM VM (api + worker + Redis via Docker Compose, Caddy for HTTPS), Neon (Postgres) | Free with no expiry or sleeping, managed Postgres with backups |
 
 ---
 
@@ -121,15 +123,13 @@ origo/
 │           ├── migrations/
 │           └── seed.ts              demo data
 ├── packages/
-│   ├── shared/                 # Zod schemas, enums, shared types
-│   ├── api-client/             # generated from OpenAPI
-│   ├── ui/                     # design tokens + restyled shadcn components
-│   └── config/                 # shared eslint, tsconfig, prettier
+│   ├── shared/                 # Zod schemas, enums, DTO types (used by API and web)
+│   └── config/                 # shared eslint and tsconfig presets
 ├── infra/
-│   ├── docker-compose.dev.yml  # local Postgres + Redis
-│   ├── docker-compose.prod.yml # api, worker, redis, caddy on the Oracle VM
+│   ├── docker-compose.dev.yml  # local Postgres (Redis joins in Phase 2)
+│   ├── docker-compose.prod.yml # api + caddy on the Oracle VM (worker + redis join in Phase 2)
 │   ├── Caddyfile
-│   └── deploy.sh               # one-command production deploy
+│   └── deploy.sh               # one-command production deploy and rollback
 ├── docs/
 │   ├── architecture.md
 │   └── adr/                    # architecture decision records
@@ -139,6 +139,7 @@ origo/
 ### Code conventions that keep it scalable
 
 **Backend (NestJS)**
+
 - Each module has the same shape: `*.controller.ts` → `*.service.ts` → `*.repository.ts`, plus `dto/` and `*.module.ts`.
 - Controllers only parse input and shape output. Business rules live in services. Only repositories talk to Prisma.
 - Modules never reach into another module's repository. They call the other module's exported service, so any module can later be split into its own service.
@@ -148,10 +149,12 @@ origo/
 - Errors are thrown as typed domain exceptions and turned into RFC 9457 responses by one global filter.
 
 **Frontend (Next.js)**
+
 - Server Components by default; `"use client"` only for interactive pieces.
 - Code is grouped by feature (`features/transfers/{components,hooks,api}`), not by file type.
-- All API calls go through the generated client. No hand-written `fetch` URLs.
-- Shared visual pieces live in `packages/ui`; feature folders never restyle them inline.
+- API calls go through two small typed helpers: `serverApi` (Server Components, forwards cookies) and `clientApi` (browser, retries once after a token refresh). Request and response types come from `@origo/shared`.
+- The browser reaches the API through a same-origin rewrite (`/api/v1/*` on the web domain), so auth cookies are first-party.
+- shadcn/ui components live in `apps/web/src/components/ui` and are themed only through the tokens in `globals.css`. They move to a `packages/ui` package if a second frontend appears.
 
 ---
 
@@ -169,20 +172,21 @@ Organization 1───* Membership *───1 User
      └───* Transfer (from_org → to_org) 1───* TransferItem ───1 Pack
 ```
 
-| Entity | Key fields |
-|---|---|
-| `Organization` | `type` (MANUFACTURER, DISTRIBUTOR, WHOLESALER, PHARMACY), `status` (PENDING, APPROVED, SUSPENDED), license number |
-| `User` | email, password hash, `isPlatformAdmin` |
-| `Membership` | user, organization, `role` (OWNER, ADMIN, STAFF) |
-| `Product` | manufacturer org, name, strength, dosage form, storage instructions |
-| `Batch` | product, batch number, manufacture date, expiry date, `status` (ACTIVE, RECALLED) |
-| `Pack` | public ID (e.g. `MED-2026-000123`), batch, `currentOwnerOrgId`, `status` (IN_STOCK, IN_TRANSIT, DISPENSED, RECALLED) |
-| `Transfer` | from org, to org, `status` (PENDING, ACCEPTED, REJECTED, CANCELLED) |
-| `LedgerEvent` | pack, type (REGISTERED, TRANSFER_SENT, TRANSFER_RECEIVED, DISPENSED, RECALLED), actor, payload, `prevHash`, `hash` |
-| `Scan` | pack, timestamp, coarse location (country/city from IP), user agent hash |
-| `AuditLog` | actor, action, entity, before/after, IP, request ID |
+| Entity         | Key fields                                                                                                           |
+| -------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `Organization` | `type` (MANUFACTURER, DISTRIBUTOR, WHOLESALER, PHARMACY), `status` (PENDING, APPROVED, SUSPENDED), license number    |
+| `User`         | email, password hash, `isPlatformAdmin`                                                                              |
+| `Membership`   | user, organization, `role` (OWNER, ADMIN, STAFF)                                                                     |
+| `Product`      | manufacturer org, name, strength, dosage form, storage instructions                                                  |
+| `Batch`        | product, batch number, manufacture date, expiry date, `status` (ACTIVE, RECALLED)                                    |
+| `Pack`         | public ID (e.g. `MED-2026-000123`), batch, `currentOwnerOrgId`, `status` (IN_STOCK, IN_TRANSIT, DISPENSED, RECALLED) |
+| `Transfer`     | from org, to org, `status` (PENDING, ACCEPTED, REJECTED, CANCELLED)                                                  |
+| `LedgerEvent`  | pack, type (REGISTERED, TRANSFER_SENT, TRANSFER_RECEIVED, DISPENSED, RECALLED), actor, payload, `prevHash`, `hash`   |
+| `Scan`         | pack, timestamp, coarse location (country/city from IP), user agent hash                                             |
+| `AuditLog`     | actor, action, entity, before/after, IP, request ID                                                                  |
 
 Notes:
+
 - **Pack ownership** lives on `Pack.currentOwnerOrgId` for fast lookups. The ledger is the history; the column is a cache of the latest state. Both change inside one database transaction.
 - `AuditLog` covers admin and account actions (who approved an org, who changed a role). `LedgerEvent` covers what happened to a pack. They are kept apart on purpose.
 
@@ -221,6 +225,7 @@ https://<web-domain>/v/MED-2026-000123?s=<signature>
 ### 6.3 Clone detection
 
 A real signature on a copied label still looks valid, so the scan history is used too:
+
 - Each scan is recorded with a coarse location and time.
 - The verify result is downgraded to **Warning** when a pack:
   - is scanned in two far-apart cities within a short time,
@@ -236,6 +241,7 @@ A real signature on a copied label still looks valid, so the scan history is use
 3. On accept, ownership moves and ledger events are written, all in one database transaction.
 
 Rules enforced in the service layer and backed by database constraints:
+
 - Only the current owner can send a pack.
 - A pack can be in at most one open transfer (partial unique index).
 - Recalled or expired packs can't be transferred.
@@ -245,17 +251,20 @@ Transfer requests take an `Idempotency-Key` header so a retried request doesn't 
 
 ### 6.5 Auth and authorization
 
-- **Tokens:** short-lived access token (15 min) and rotating refresh token (7 days), both in `httpOnly`, `Secure`, `SameSite=Lax` cookies. Refresh tokens are stored hashed, and reusing an old one revokes the whole session family.
-- **Passwords:** argon2id. Login is rate-limited per IP and per account.
-- **Authorization:** three layers.
-  1. `JwtAuthGuard`: is the user logged in?
-  2. `RolesGuard`: does the user's role allow this action?
+- **Tokens:** short-lived access token (15 min) and rotating refresh token (7 days), both in `httpOnly`, `Secure`, `SameSite=Lax` cookies. Refresh tokens are stored hashed, and reusing an old one revokes the whole session family. A just-rotated token stays valid for 10 seconds so two tabs refreshing at once don't log the user out.
+- **Refresh before render:** the web app's middleware swaps an expired access token for a new one before a page renders, so Server Components always see a valid session. This is why the refresh cookie uses path `/`.
+- **Client IP:** the API trusts `X-Forwarded-For` from a fixed number of proxies (`TRUST_PROXY_HOPS`: 2 in production, Vercel then Caddy), so rate limits and audit logs see the visitor's IP, not Vercel's.
+- **Passwords:** argon2id. Login is rate-limited per IP (5 per minute), and a failed login takes the same time whether or not the email exists.
+- **Authorization:** three layers, all global, so a new route is protected by default.
+  1. `AuthenticationGuard`: is the user logged in? Skipped only for routes marked `@Public()`. Loads the user and membership fresh on every request, so a suspension applies immediately.
+  2. `AccessGuard`: reads `@PlatformAdminOnly()`, `@RequireApprovedOrg()` and `@Roles(...)` on the route.
   3. **Org scoping:** every query filters by the caller's organization, done in the service layer, so a pharmacy can never read a distributor's stock by changing an ID in the URL.
 - An organization can't do anything until a platform admin approves it.
 
 ### 6.6 Public verification endpoint
 
 `GET /verify/:packId?s=...` is the only public, unauthenticated data endpoint.
+
 - Rate-limited per IP through Redis.
 - Returns a minimal, safe view: product, batch, expiry, recall status, verdict, storage instructions. It never returns the owner's identity or internal IDs.
 - Verdicts: `VERIFIED`, `WARNING` (with a plain-language reason), `NOT_RECOGNIZED`.
@@ -267,18 +276,18 @@ Transfer requests take an `Idempotency-Key` header so a retried request doesn't 
 
 REST, versioned under `/api/v1`, documented at `/api/docs`.
 
-| Area | Endpoints (examples) |
-|---|---|
-| Auth | `POST /auth/signup`, `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`, `GET /auth/me` |
-| Organizations | `POST /organizations`, `GET /organizations/:id`, `POST /admin/organizations/:id/approve` |
-| Members | `POST /organizations/:id/invites`, `PATCH /memberships/:id` |
-| Products and batches | `POST /products`, `POST /products/:id/batches`, `GET /batches/:id` |
-| Packs | `POST /batches/:id/packs` (bulk create), `GET /packs/:id`, `GET /packs/:id/ledger`, `GET /packs/:id/ledger/verify` |
-| QR export | `POST /batches/:id/qr-export` (queued job) → `GET /jobs/:id` |
-| Transfers | `POST /transfers`, `POST /transfers/:id/accept`, `POST /transfers/:id/reject`, `GET /transfers?direction=incoming` |
-| Pharmacy | `POST /packs/:id/dispense` |
-| Verification | `GET /verify/:packId` (public) |
-| Health | `GET /health/live`, `GET /health/ready` |
+| Area                 | Endpoints (examples)                                                                                               |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| Auth                 | `POST /auth/signup`, `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`, `GET /auth/me`                 |
+| Organizations        | `POST /organizations`, `GET /organizations/:id`, `POST /admin/organizations/:id/approve`                           |
+| Members              | `POST /organizations/:id/invites`, `PATCH /memberships/:id`                                                        |
+| Products and batches | `POST /products`, `POST /products/:id/batches`, `GET /batches/:id`                                                 |
+| Packs                | `POST /batches/:id/packs` (bulk create), `GET /packs/:id`, `GET /packs/:id/ledger`, `GET /packs/:id/ledger/verify` |
+| QR export            | `POST /batches/:id/qr-export` (queued job) → `GET /jobs/:id`                                                       |
+| Transfers            | `POST /transfers`, `POST /transfers/:id/accept`, `POST /transfers/:id/reject`, `GET /transfers?direction=incoming` |
+| Pharmacy             | `POST /packs/:id/dispense`                                                                                         |
+| Verification         | `GET /verify/:packId` (public)                                                                                     |
+| Health               | `GET /health/live`, `GET /health/ready`                                                                            |
 
 Errors follow RFC 9457 (Problem Details) so every error response has the same shape.
 
@@ -286,12 +295,12 @@ Errors follow RFC 9457 (Problem Details) so every error response has the same sh
 
 ## 8. Background jobs (BullMQ)
 
-| Job | Trigger | What it does |
-|---|---|---|
-| `qr-export` | Manufacturer requests labels | Signs pack IDs, renders a printable PDF / ZIP of QR images, stores it, returns a download link |
-| `record-scan` | Every public verify call | Saves the scan, runs clone-detection rules |
-| `send-email` | Invites, approvals, transfer notices | Sends transactional email |
-| `ledger-daily-root` | Nightly cron | Computes and stores the daily root hash |
+| Job                 | Trigger                              | What it does                                                                                   |
+| ------------------- | ------------------------------------ | ---------------------------------------------------------------------------------------------- |
+| `qr-export`         | Manufacturer requests labels         | Signs pack IDs, renders a printable PDF / ZIP of QR images, stores it, returns a download link |
+| `record-scan`       | Every public verify call             | Saves the scan, runs clone-detection rules                                                     |
+| `send-email`        | Invites, approvals, transfer notices | Sends transactional email                                                                      |
+| `ledger-daily-root` | Nightly cron                         | Computes and stores the daily root hash                                                        |
 
 Jobs retry with exponential backoff and go to a dead-letter queue after the last failure.
 
@@ -314,6 +323,7 @@ Jobs retry with exponential backoff and go to a dead-letter queue after the last
 The UI has to look like a real product a pharma company would pay for. That means calm, dense and precise, closer to Stripe Dashboard or Linear than to a template.
 
 **Things we never ship**
+
 - Purple/blue gradients, glassmorphism, glowing blobs, or decorative 3D shapes.
 - Emoji as icons, or a different icon style on every screen.
 - Centered "hero card" layouts inside the app, or every screen built from identical rounded cards with big shadows.
@@ -321,37 +331,42 @@ The UI has to look like a real product a pharma company would pay for. That mean
 - Spinners as the only loading state, or blank screens when there is no data.
 
 **Visual language**
+
 - **Type:** one sans-serif family (Geist Sans) for UI and Geist Mono for pack IDs, batch numbers and hashes. Numbers use tabular figures so columns line up.
 - **Color:** a neutral grey base (slightly cool) with one brand accent, **Deep Petrol**. Green, amber and red are reserved for status only: Verified, Warning, Not recognized / Recalled. Petrol sits between blue and teal, far enough from the Verified green that a primary button never reads as a status. Status is always shown with an icon and text too, never color alone.
 
-  | Token | Light | Dark |
-  |---|---|---|
-  | `accent` | `#155E75` | `#5EC4DA` |
-  | `accent-soft` (active nav, tags) | `#E2F0F4` | `#12303A` |
-  | `on-accent` (text on accent) | `#FFFFFF` | `#062028` |
-  | `background` | `#F5F7F8` | `#0A1216` |
-  | `surface` | `#FFFFFF` | `#101B20` |
-  | `border` | `#DDE3E6` | `#23343B` |
-  | `foreground` | `#0F1D24` | `#E5EDF0` |
-  | `muted-foreground` | `#5A6A72` | `#8DA0A8` |
-  | `success` (Verified) | `#15803D` | `#4ADE80` |
-  | `warning` | `#B45309` | `#FBBF24` |
+  | Token                                | Light     | Dark      |
+  | ------------------------------------ | --------- | --------- |
+  | `accent`                             | `#155E75` | `#5EC4DA` |
+  | `accent-soft` (active nav, tags)     | `#E2F0F4` | `#12303A` |
+  | `on-accent` (text on accent)         | `#FFFFFF` | `#062028` |
+  | `background`                         | `#F5F7F8` | `#0A1216` |
+  | `surface`                            | `#FFFFFF` | `#101B20` |
+  | `border`                             | `#DDE3E6` | `#23343B` |
+  | `foreground`                         | `#0F1D24` | `#E5EDF0` |
+  | `muted-foreground`                   | `#5A6A72` | `#8DA0A8` |
+  | `success` (Verified)                 | `#15803D` | `#4ADE80` |
+  | `warning`                            | `#B45309` | `#FBBF24` |
   | `danger` (Recalled / Not recognized) | `#B91C1C` | `#F87171` |
+
 - **Tokens:** colors, spacing, radius and shadows are CSS variables in `packages/ui`, with light and dark themes from day one.
 - **Density:** 14px base text in dashboards, compact tables, consistent 4px spacing grid.
 
 **App shell (dashboards)**
+
 - Left sidebar with role-specific navigation, top bar with org switcher, global search (pack ID / batch number) and user menu. `Cmd/Ctrl + K` opens a command palette.
 - Data tables with server-side sorting, filters, pagination, column visibility and row actions. Bulk actions for multi-pack transfers.
 - Every screen has designed loading (skeletons matching the layout), empty (explains what to do next, with the action button) and error (what went wrong and how to retry) states.
 
 **Signature screens**
+
 - **Pack timeline:** a vertical timeline of every ledger event (registered → sent → received → dispensed), each with org, time and actor, plus a "Chain intact" badge from the hash-chain check.
 - **Transfer flow:** select packs (scan or search) → choose receiver → review → confirm, with the incoming side showing a clear accept/reject inbox.
 - **Patient verify page (`/v/[packId]`):** mobile-first. The verdict is the first and largest thing on screen, written in plain language, followed by product, batch, expiry, recall notice and storage instructions. Server-rendered, minimal JavaScript, fast on a cheap phone over a slow connection.
 - **Manufacturer overview:** batches, packs registered, packs in the chain by stage, recent warnings.
 
 **Interaction and accessibility**
+
 - Keyboard accessible throughout, visible focus rings, WCAG AA contrast in both themes.
 - Forms validate inline as the user types (same Zod schema as the API) and keep their input on errors.
 - Toasts only confirm background results; destructive actions (reject transfer, recall batch) use a confirm dialog that names what will happen.
@@ -361,14 +376,15 @@ The UI has to look like a real product a pharma company would pay for. That mean
 
 ## 11. Environments and deployment
 
-| Environment | Web | API + worker | Database | Redis |
-|---|---|---|---|---|
-| Local | `next dev` | `nest start --watch` | Docker Postgres | Docker Redis |
-| Production | Vercel | Oracle VM (Docker Compose) | Neon | Redis container on the VM |
+| Environment | Web        | API + worker               | Database        | Redis                     |
+| ----------- | ---------- | -------------------------- | --------------- | ------------------------- |
+| Local       | `next dev` | `nest start --watch`       | Docker Postgres | Docker Redis              |
+| Production  | Vercel     | Oracle VM (Docker Compose) | Neon            | Redis container on the VM |
 
 **Web:** Vercel deploys the `main` branch through its built-in GitHub integration.
 
 **API and worker:** `infra/deploy.sh` does a one-command deploy over SSH:
+
 1. Pull the latest code on the VM.
 2. Build the Docker images on the VM itself (it is ARM, so images are built natively).
 3. Run Prisma migrations against Neon.
@@ -393,6 +409,7 @@ Database migrations run as a separate deploy step before the new API version sta
 ## 13. Demo data
 
 A seed script creates a full demo world so visitors can try the app without signing up:
+
 - One manufacturer, distributor, wholesaler and pharmacy, each with a demo login.
 - Products and batches, including one recalled batch and one near-expiry batch.
 - Packs at every stage of the chain, plus one "cloned" pack that triggers a warning.
@@ -402,12 +419,14 @@ A seed script creates a full demo world so visitors can try the app without sign
 
 ## 14. Phase 1 deliverables (from this document)
 
-- Monorepo skeleton with `apps/web`, `apps/api`, `packages/shared`, `packages/config`
-- `docker-compose.yml` for local Postgres and Redis
-- Prisma schema for `Organization`, `User`, `Membership`, `AuditLog`
-- Auth module (signup, login, refresh, logout, me) with guards
-- Organization onboarding and admin approval
-- Role-based empty dashboards in the web app
-- `packages/ui` with design tokens, themes and the app shell
-- Health endpoints, pino logging, Sentry
-- Production deployment: Vercel for web, Oracle VM with `deploy.sh` for API, worker and Redis
+- Monorepo skeleton with `apps/web`, `apps/api`, `packages/shared`, `packages/config` (pnpm workspaces)
+- `infra/docker-compose.dev.yml` for local Postgres
+- Prisma schema for `User`, `Organization`, `Membership`, `Session`, `AuditLog`
+- Auth module (signup, login, refresh with rotation and reuse detection, logout, me) with guards
+- Organization onboarding and admin review (approve, reject with reason, suspend)
+- Role-based dashboards, review status for pending/rejected/suspended orgs, admin review queue
+- Design tokens, light and dark themes, and the app shell
+- Health endpoints, pino logging with request IDs, Sentry
+- Production deployment: Vercel for web, Oracle VM with `deploy.sh` for the API
+
+Redis, BullMQ and the worker process arrive in Phase 2, with the first background job (QR export). Phase 1 rate limiting is in-memory, which is correct while one API container runs.

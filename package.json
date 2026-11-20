@@ -1,0 +1,35 @@
+{
+  "name": "origo",
+  "private": true,
+  "packageManager": "pnpm@10.18.3",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @origo/shared build && pnpm -r --parallel --filter !@origo/config dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm --filter @origo/shared build && pnpm -r lint",
+    "typecheck": "pnpm --filter @origo/shared build && pnpm -r typecheck",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "db:migrate": "pnpm --filter @origo/api db:migrate",
+    "db:deploy": "pnpm --filter @origo/api db:deploy",
+    "db:seed": "pnpm --filter @origo/api db:seed",
+    "db:studio": "pnpm --filter @origo/api db:studio",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@next/eslint-plugin-next": "^15.5.29",
+    "eslint": "^9.39.5",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
+    "prettier": "^3.10.1",
+    "prettier-plugin-tailwindcss": "~0.6.14",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.73.0"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,mjs,json,css,md,yml,yaml}": "prettier --write --ignore-unknown"
+  }
+}

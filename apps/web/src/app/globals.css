@@ -1,0 +1,151 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Origo design tokens. Deep Petrol is the only brand accent; green, amber and red
+ * are reserved for status (Verified, Warning, Recalled / Not recognized).
+ * See docs/architecture.md, section 10.
+ */
+:root {
+  --radius: 0.5rem;
+
+  --background: #f5f7f8;
+  --foreground: #0f1d24;
+  --card: #ffffff;
+  --card-foreground: #0f1d24;
+  --popover: #ffffff;
+  --popover-foreground: #0f1d24;
+
+  --primary: #155e75;
+  --primary-foreground: #ffffff;
+  --secondary: #eef2f4;
+  --secondary-foreground: #0f1d24;
+  --muted: #eef2f4;
+  --muted-foreground: #5a6a72;
+  --accent: #e2f0f4;
+  --accent-foreground: #155e75;
+
+  --border: #dde3e6;
+  --input: #cfd7db;
+  --ring: #155e75;
+
+  --success: #15803d;
+  --success-soft: #e6f4ea;
+  --warning: #b45309;
+  --warning-soft: #fdf1e3;
+  --destructive: #b91c1c;
+  --destructive-soft: #fbe9e9;
+
+  --sidebar: #fafbfc;
+  --sidebar-foreground: #0f1d24;
+  --sidebar-primary: #155e75;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e2f0f4;
+  --sidebar-accent-foreground: #155e75;
+  --sidebar-border: #dde3e6;
+  --sidebar-ring: #155e75;
+}
+
+.dark {
+  --background: #0a1216;
+  --foreground: #e5edf0;
+  --card: #101b20;
+  --card-foreground: #e5edf0;
+  --popover: #101b20;
+  --popover-foreground: #e5edf0;
+
+  --primary: #5ec4da;
+  --primary-foreground: #062028;
+  --secondary: #16242a;
+  --secondary-foreground: #e5edf0;
+  --muted: #16242a;
+  --muted-foreground: #8da0a8;
+  --accent: #12303a;
+  --accent-foreground: #5ec4da;
+
+  --border: #23343b;
+  --input: #2c3f47;
+  --ring: #5ec4da;
+
+  --success: #4ade80;
+  --success-soft: #12301d;
+  --warning: #fbbf24;
+  --warning-soft: #34270c;
+  --destructive: #f87171;
+  --destructive-soft: #3a1517;
+
+  --sidebar: #0d171b;
+  --sidebar-foreground: #e5edf0;
+  --sidebar-primary: #5ec4da;
+  --sidebar-primary-foreground: #062028;
+  --sidebar-accent: #12303a;
+  --sidebar-accent-foreground: #5ec4da;
+  --sidebar-border: #23343b;
+  --sidebar-ring: #5ec4da;
+}
+
+@theme inline {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+  --radius-xl: calc(var(--radius) + 6px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-destructive: var(--destructive);
+  --color-destructive-soft: var(--destructive-soft);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "cv11", "ss01";
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

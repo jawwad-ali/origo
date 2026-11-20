@@ -1,0 +1,53 @@
+# Production stack on the Oracle Cloud VM (ARM64). PostgreSQL is managed (Neon), not here.
+# Run from the repo root on the VM:
+#   docker compose -f infra/docker-compose.prod.yml --env-file infra/.env.production up -d
+name: origo
+
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+    image: origo-api:${IMAGE_TAG:-latest}
+    env_file: .env.production
+    environment:
+      NODE_ENV: production
+      PORT: "4000"
+      COOKIE_SECURE: "true"
+      TRUST_PROXY_HOPS: "2"
+    expose:
+      - "4000"
+    restart: always
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "5" }
+
+  caddy:
+    image: caddy:2.10-alpine
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      API_DOMAIN: ${API_DOMAIN:?set API_DOMAIN in infra/.env.production}
+      ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL in infra/.env.production}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: always
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "5" }
+
+volumes:
+  caddy_data:
+  caddy_config:
