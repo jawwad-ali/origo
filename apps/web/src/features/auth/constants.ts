@@ -14,7 +14,7 @@ export const DEFAULT_COUNTRY = "PK";
 export const SAMPLE_PACK = {
   id: "MED-2026-000123",
   verifyUrl: "https://origo.app/v/MED-2026-000123",
-  maker: "Indus Pharmaceuticals",
+  maker: "Talvane Pharmaceuticals",
   drug: "Paracetamol",
   strength: "500 mg",
   form: "20 tablets · Oral",
@@ -30,4 +30,4 @@ export const SAMPLE_ROUTE = [
   { role: "Pharmacy", city: "Islamabad", date: "19 Mar" },
 ] as const;
 
-export const SAMPLE_VERDICT = "Verified at Shifa Community Pharmacy";
+export const SAMPLE_VERDICT = "Verified at Halvern Community Pharmacy";

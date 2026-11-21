@@ -4,7 +4,7 @@ import { type CreateProductInput } from "@origo/shared";
  * The demo world: real products and batches moved through the real services, so every pack has a
  * valid hash chain. Batch numbers double as markers: if the first one exists, the world is seeded.
  */
-export const DEMO_MARKER_BATCH = "AUG-2026-0101";
+export const DEMO_MARKER_BATCH = "AMX-2026-0101";
 
 export const DEMO_ORG_EMAILS = {
   manufacturer: "manufacturer@demo.origo.dev",
@@ -23,9 +23,9 @@ export interface DemoProduct {
 
 export const DEMO_PRODUCTS: DemoProduct[] = [
   {
-    key: "augmentin",
+    key: "amoxarel",
     input: {
-      name: "Augmentin",
+      name: "Amoxarel",
       genericName: "Amoxicillin + Clavulanic acid",
       strength: "625 mg",
       dosageForm: "TABLET",
@@ -35,9 +35,9 @@ export const DEMO_PRODUCTS: DemoProduct[] = [
     batch: { batchNumber: DEMO_MARKER_BATCH, packCount: 600, manufacturedDaysAgo: 40, expiresInDays: 700 },
   },
   {
-    key: "brufen",
+    key: "ibuvant",
     input: {
-      name: "Brufen",
+      name: "Ibuvant",
       genericName: "Ibuprofen",
       strength: "400 mg",
       dosageForm: "TABLET",
@@ -45,12 +45,12 @@ export const DEMO_PRODUCTS: DemoProduct[] = [
       storageInstructions: "Store below 30°C in a dry place.",
     },
     // Close to expiry, so the "expires soon" state shows up across the app.
-    batch: { batchNumber: "BRF-2024-0930", packCount: 300, manufacturedDaysAgo: 650, expiresInDays: 45 },
+    batch: { batchNumber: "IBV-2024-0930", packCount: 300, manufacturedDaysAgo: 650, expiresInDays: 45 },
   },
   {
-    key: "ventolin",
+    key: "salbrio",
     input: {
-      name: "Ventolin Evohaler",
+      name: "Salbrio Inhaler",
       genericName: "Salbutamol",
       strength: "100 mcg",
       dosageForm: "INHALER",
@@ -58,12 +58,12 @@ export const DEMO_PRODUCTS: DemoProduct[] = [
       storageInstructions: "Store below 30°C. Do not puncture or burn, even when empty.",
     },
     // Recalled after reaching a pharmacy, to show the recall warning on a patient scan.
-    batch: { batchNumber: "VNT-2026-0215", packCount: 150, manufacturedDaysAgo: 60, expiresInDays: 540 },
+    batch: { batchNumber: "SLB-2026-0215", packCount: 150, manufacturedDaysAgo: 60, expiresInDays: 540 },
   },
   {
     key: "insulin",
     input: {
-      name: "Humulin R",
+      name: "Insolva R",
       genericName: "Insulin human",
       strength: "100 IU/ml",
       dosageForm: "INJECTION",

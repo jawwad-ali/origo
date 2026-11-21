@@ -13,25 +13,25 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
   {
     role: "Manufacturer",
     email: "manufacturer@demo.origo.dev",
-    organization: "Indus Pharmaceuticals",
+    organization: "Talvane Pharmaceuticals",
     tryThis: "Register a batch and print its QR labels.",
   },
   {
     role: "Distributor",
     email: "distributor@demo.origo.dev",
-    organization: "Crescent Medical Distribution",
-    tryThis: "Accept the pending Brufen delivery, then ship onward.",
+    organization: "Seravan Distribution",
+    tryThis: "Accept the pending Ibuvant delivery, then ship onward.",
   },
   {
     role: "Wholesaler",
     email: "wholesaler@demo.origo.dev",
-    organization: "Ravi Pharma Wholesale",
+    organization: "Kestora Wholesale",
     tryThis: "Review the insulin transfer waiting for you.",
   },
   {
     role: "Pharmacy",
     email: "pharmacy@demo.origo.dev",
-    organization: "Shifa Community Pharmacy",
+    organization: "Halvern Community Pharmacy",
     tryThis: "Open a pack's timeline and dispense it to a patient.",
   },
   {

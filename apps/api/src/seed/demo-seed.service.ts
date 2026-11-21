@@ -55,18 +55,18 @@ export class DemoSeedService {
     await this.send(
       who.manufacturer,
       who.distributor,
-      [line("augmentin", 300), line("brufen", 100), line("ventolin", 80), line("insulin", 60)],
+      [line("amoxarel", 300), line("ibuvant", 100), line("salbrio", 80), line("insulin", 60)],
       "accept",
     );
-    await this.send(who.distributor, who.wholesaler, [line("augmentin", 120)], "accept");
-    await this.send(who.wholesaler, who.pharmacy, [line("augmentin", 60)], "accept");
-    await this.send(who.distributor, who.pharmacy, [line("ventolin", 40), line("insulin", 30)], "accept");
-    await this.send(who.distributor, who.pharmacy, [line("augmentin", 25)], "reject");
-    await this.send(who.manufacturer, who.distributor, [line("augmentin", 30)], "cancel");
+    await this.send(who.distributor, who.wholesaler, [line("amoxarel", 120)], "accept");
+    await this.send(who.wholesaler, who.pharmacy, [line("amoxarel", 60)], "accept");
+    await this.send(who.distributor, who.pharmacy, [line("salbrio", 40), line("insulin", 30)], "accept");
+    await this.send(who.distributor, who.pharmacy, [line("amoxarel", 25)], "reject");
+    await this.send(who.manufacturer, who.distributor, [line("amoxarel", 30)], "cancel");
     await this.send(
       who.manufacturer,
       who.distributor,
-      [line("brufen", 50)],
+      [line("ibuvant", 50)],
       "pending",
       "Restock for the Lahore depot.",
     );
@@ -78,8 +78,8 @@ export class DemoSeedService {
       "Cold box, keep at 2–8°C on arrival.",
     );
 
-    const dispensed = await this.dispense(who.pharmacy, batchIds.augmentin ?? "", 8);
-    await this.prisma.batch.update({ where: { id: batchIds.ventolin }, data: { status: "RECALLED" } });
+    const dispensed = await this.dispense(who.pharmacy, batchIds.amoxarel ?? "", 8);
+    await this.prisma.batch.update({ where: { id: batchIds.salbrio }, data: { status: "RECALLED" } });
     await this.simulateScans(dispensed);
     this.logger.log("Demo world created.");
   }

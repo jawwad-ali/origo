@@ -33,7 +33,7 @@ const DEMO_ORGS: DemoOrg[] = [
     email: "manufacturer@demo.origo.dev",
     fullName: "Sana Qureshi",
     org: {
-      name: "Indus Pharmaceuticals",
+      name: "Talvane Pharmaceuticals",
       type: "MANUFACTURER",
       status: "APPROVED",
       licenseNumber: "DML-000417",
@@ -45,7 +45,7 @@ const DEMO_ORGS: DemoOrg[] = [
     email: "distributor@demo.origo.dev",
     fullName: "Omar Farooq",
     org: {
-      name: "Crescent Medical Distribution",
+      name: "Seravan Distribution",
       type: "DISTRIBUTOR",
       status: "APPROVED",
       licenseNumber: "DDL-002291",
@@ -57,7 +57,7 @@ const DEMO_ORGS: DemoOrg[] = [
     email: "wholesaler@demo.origo.dev",
     fullName: "Hina Raza",
     org: {
-      name: "Ravi Pharma Wholesale",
+      name: "Kestora Wholesale",
       type: "WHOLESALER",
       status: "APPROVED",
       licenseNumber: "WSL-008830",
@@ -69,7 +69,7 @@ const DEMO_ORGS: DemoOrg[] = [
     email: "pharmacy@demo.origo.dev",
     fullName: "Bilal Ahmed",
     org: {
-      name: "Shifa Community Pharmacy",
+      name: "Halvern Community Pharmacy",
       type: "PHARMACY",
       status: "APPROVED",
       licenseNumber: "PHL-015562",
@@ -81,7 +81,7 @@ const DEMO_ORGS: DemoOrg[] = [
     email: "pending@demo.origo.dev",
     fullName: "Ayesha Siddiqui",
     org: {
-      name: "Northern Care Pharmacy",
+      name: "Brookvale Pharmacy",
       type: "PHARMACY",
       status: "PENDING",
       licenseNumber: "PHL-019004",
