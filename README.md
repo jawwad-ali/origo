@@ -55,7 +55,10 @@ Origo answers each one: signed codes that can't be invented, a two-step handover
 ```mermaid
 flowchart LR
     subgraph Users
-      M[Manufacturer] & D[Distributor] & W[Wholesaler] & P[Pharmacy]
+      M[Manufacturer]
+      D[Distributor]
+      W[Wholesaler]
+      P[Pharmacy]
       PT[Patient scans QR]
     end
     subgraph Vercel
