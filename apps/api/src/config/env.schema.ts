@@ -46,6 +46,16 @@ export const envSchema = z.object({
 
   /** Turns on the public demo endpoints (sample packs). Never enable on a real deployment with real data. */
   DEMO_MODE: booleanString,
+
+  /**
+   * Runs the queue consumers inside the API process instead of a separate worker. For single-instance
+   * hosts that can't run a second process (free tiers). Keep false when the worker runs on its own.
+   */
+  RUN_WORKER_IN_API: booleanString,
 });
+
+/** Reads RUN_WORKER_IN_API before the Nest container exists, since it decides which modules load. */
+export const readRunWorkerInApi = (env: NodeJS.ProcessEnv = process.env): boolean =>
+  envSchema.shape.RUN_WORKER_IN_API.parse(env.RUN_WORKER_IN_API);
 
 export type Env = z.infer<typeof envSchema>;

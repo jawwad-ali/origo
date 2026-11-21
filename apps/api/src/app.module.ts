@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common";
+import { type DynamicModule, Module } from "@nestjs/common";
 import { ThrottlerModule } from "@nestjs/throttler";
 import { SentryModule } from "@sentry/nestjs/setup";
 import { LoggerModule } from "nestjs-pino";
@@ -13,6 +13,7 @@ import { DemoModule } from "./modules/demo/demo.module";
 import { HealthModule } from "./modules/health/health.module";
 import { InventoryModule } from "./modules/inventory/inventory.module";
 import { LabelExportsModule } from "./modules/label-exports/label-exports.module";
+import { LabelExportsWorkerModule } from "./modules/label-exports/worker/label-exports-worker.module";
 import { PackHistoryModule } from "./modules/pack-history/pack-history.module";
 import { ProductsModule } from "./modules/products/products.module";
 import { QrSigningModule } from "./modules/qr-signing/qr-signing.module";
@@ -21,6 +22,11 @@ import { VerificationModule } from "./modules/verification/verification.module";
 import { PrismaModule } from "./prisma/prisma.module";
 
 const DEFAULT_RATE_LIMIT = { ttl: 60_000, limit: 120 };
+
+export interface AppModuleOptions {
+  /** Also consume the job queues in this process (see RUN_WORKER_IN_API). */
+  embeddedWorker: boolean;
+}
 
 @Module({
   imports: [
@@ -44,4 +50,8 @@ const DEFAULT_RATE_LIMIT = { ttl: 60_000, limit: 120 };
     HealthModule,
   ],
 })
-export class AppModule {}
+export class AppModule {
+  static forRoot({ embeddedWorker }: AppModuleOptions): DynamicModule {
+    return { module: AppModule, imports: embeddedWorker ? [LabelExportsWorkerModule] : [] };
+  }
+}

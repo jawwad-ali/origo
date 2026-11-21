@@ -13,7 +13,7 @@ const CLEANUP_EVERY_MS = 60 * 60 * 1000;
 const HOUR_MS = 3_600_000;
 const WORKER_CONCURRENCY = 2;
 
-/** Builds label PDFs and removes expired ones. Runs only in the worker process. */
+/** Builds label PDFs and removes expired ones. Runs in the worker process, or inside the API with RUN_WORKER_IN_API. */
 @Processor(LABEL_EXPORT_QUEUE, { concurrency: WORKER_CONCURRENCY })
 export class LabelExportProcessor extends WorkerHost implements OnModuleInit {
   private readonly logger = new Logger(LabelExportProcessor.name);
