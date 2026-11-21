@@ -3,6 +3,7 @@
 **Medicine traceability and anti-counterfeit platform.** Every medicine pack gets a signed QR code. Manufacturers, distributors, wholesalers and pharmacies record each handover, and patients scan the pack to check that it is genuine.
 
 [![Live demo](https://img.shields.io/badge/demo-live-15803D?style=flat-square)](https://origo-trace.vercel.app/demo)
+[![License: MIT](https://img.shields.io/badge/license-MIT-155E75?style=flat-square)](LICENSE)
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white)
 ![Next.js](https://img.shields.io/badge/Next.js_15-000?style=flat-square&logo=nextdotjs&logoColor=white)
 ![NestJS](https://img.shields.io/badge/NestJS_11-E0234E?style=flat-square&logo=nestjs&logoColor=white)
@@ -277,6 +278,10 @@ DEPLOY_HOST=ubuntu@<vm-ip> ./infra/deploy.sh rollback   # back to the previous i
 - [Architecture](docs/architecture.md): data model, security, design system, environments
 - [ADR 0001: a hash-chained ledger in Postgres instead of a blockchain](docs/adr/0001-hash-chain-over-blockchain.md)
 - [Roadmap](phases.md)
+
+## License
+
+[MIT](LICENSE) © 2026 Ali Jawwad
 
 ---
 
