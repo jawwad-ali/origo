@@ -2,7 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
   "installCommand": "pnpm install --frozen-lockfile",
-  "buildCommand": "cd ../.. && pnpm --filter \"@origo/api...\" build && mkdir -p apps/api/public",
+  "buildCommand": "cd ../.. && pnpm --filter \"@origo/api...\" build",
   "outputDirectory": "public",
   "regions": ["sin1"],
   "functions": {

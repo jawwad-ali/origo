@@ -22,5 +22,3 @@ Thumbs.db
 # runtime files (label PDFs)
 var/
 
-# Vercel build output for the API project (empty static dir)
-apps/api/public/
