@@ -11,5 +11,6 @@ import { PackHistoryService } from "./pack-history.service";
   imports: [PacksModule, BatchesModule, LedgerModule],
   controllers: [PackHistoryController],
   providers: [PackHistoryRepository, PackHistoryService, DispenseService],
+  exports: [DispenseService],
 })
 export class PackHistoryModule {}

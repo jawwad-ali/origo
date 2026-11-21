@@ -43,6 +43,9 @@ export const envSchema = z.object({
    * secret comes with them, so nobody can fake a scan's city by calling the API directly.
    */
   WEB_PROXY_SECRET: z.string().min(32).optional(),
+
+  /** Turns on the public demo endpoints (sample packs). Never enable on a real deployment with real data. */
+  DEMO_MODE: booleanString,
 });
 
 export type Env = z.infer<typeof envSchema>;

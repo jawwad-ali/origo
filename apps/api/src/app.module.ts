@@ -9,6 +9,7 @@ import { AdminModule } from "./modules/admin/admin.module";
 import { AuditModule } from "./modules/audit/audit.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { BatchesModule } from "./modules/batches/batches.module";
+import { DemoModule } from "./modules/demo/demo.module";
 import { HealthModule } from "./modules/health/health.module";
 import { InventoryModule } from "./modules/inventory/inventory.module";
 import { LabelExportsModule } from "./modules/label-exports/label-exports.module";
@@ -39,6 +40,7 @@ const DEFAULT_RATE_LIMIT = { ttl: 60_000, limit: 120 };
     TransfersModule,
     PackHistoryModule,
     VerificationModule,
+    DemoModule,
     HealthModule,
   ],
 })

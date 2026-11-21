@@ -39,7 +39,11 @@ pnpm db:seed
 pnpm dev
 ```
 
-### Demo logins (after `pnpm db:seed`)
+### Demo data
+
+`pnpm db:seed` creates the platform admin and one organization per role. `pnpm --filter @origo/api db:seed:demo` then builds a demo world through the real services: four products, transfers that were accepted, rejected, cancelled and left pending, dispensed packs, a recalled batch and a copied label. With `DEMO_MODE=true` (API) and `DEMO_PASSWORD` (web), `/demo` shows scannable sample packs and one-click sign-in for each role.
+
+### Demo logins
 
 Passwords come from `SEED_ADMIN_PASSWORD` and `SEED_DEMO_PASSWORD` in `apps/api/.env`.
 
@@ -54,24 +58,26 @@ Passwords come from `SEED_ADMIN_PASSWORD` and `SEED_DEMO_PASSWORD` in `apps/api/
 
 ## Scripts
 
-| Command                        | What it does                                           |
-| ------------------------------ | ------------------------------------------------------ |
-| `pnpm dev`                     | Web and API in watch mode                              |
-| `pnpm build`                   | Production build of every package                      |
-| `pnpm typecheck` / `pnpm lint` | Type and lint checks (also run by the pre-commit hook) |
-| `pnpm db:migrate`              | Create/apply a migration in development                |
-| `pnpm db:seed`                 | Load the admin and demo organizations                  |
-| `pnpm db:studio`               | Browse the database                                    |
+| Command                                 | What it does                                           |
+| --------------------------------------- | ------------------------------------------------------ |
+| `pnpm dev`                              | Web and API in watch mode                              |
+| `pnpm build`                            | Production build of every package                      |
+| `pnpm typecheck` / `pnpm lint`          | Type and lint checks (also run by the pre-commit hook) |
+| `pnpm db:migrate`                       | Create/apply a migration in development                |
+| `pnpm db:seed`                          | Load the admin and demo organizations                  |
+| `pnpm --filter @origo/api db:seed:demo` | Build the demo world (products, transfers, scans)      |
+| `pnpm --filter @origo/api qr:keygen`    | Generate a QR signing key pair                         |
+| `pnpm db:studio`                        | Browse the database                                    |
 
 ## Deploying
 
-**Web:** import the repo in Vercel with root directory `apps/web` and set `API_URL` to the API's public URL. `apps/web/vercel.json` builds the shared package first.
-
-**API:** on the Oracle VM, clone the repo to `/opt/origo` and create `infra/.env.production` from `infra/.env.production.example`. Then, from your machine:
+See [docs/deployment.md](docs/deployment.md) for the full guide: Neon `main` branch, the Oracle Cloud VM (API, worker, Redis, Caddy with automatic HTTPS), Vercel, demo data and post-launch checks.
 
 ```bash
 DEPLOY_HOST=ubuntu@<vm-ip> ./infra/deploy.sh            # build on the VM, migrate, restart, health check
 DEPLOY_HOST=ubuntu@<vm-ip> ./infra/deploy.sh rollback   # back to the previous image
 ```
 
-Caddy issues the HTTPS certificate for `API_DOMAIN` automatically.
+## Design decisions
+
+- [ADR 0001: a hash-chained ledger in Postgres instead of a blockchain](docs/adr/0001-hash-chain-over-blockchain.md)

@@ -57,7 +57,7 @@ deploy() {
 
 rollback() {
   echo "→ Rolling back to origo-api:previous"
-  remote "docker image inspect origo-api:previous >/dev/null && docker tag origo-api:previous origo-api:latest && $COMPOSE up -d --no-build api"
+  remote "docker image inspect origo-api:previous >/dev/null && docker tag origo-api:previous origo-api:latest && $COMPOSE up -d --no-build api worker"
   wait_for_ready
   echo "✓ Rolled back. Database migrations are not reverted; roll forward with a new migration if needed."
 }

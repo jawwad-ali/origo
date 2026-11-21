@@ -2,6 +2,11 @@
   "name": "@origo/api",
   "version": "0.0.0",
   "private": true,
+  "files": [
+    "dist",
+    "prisma/schema.prisma",
+    "prisma/migrations"
+  ],
   "scripts": {
     "build": "nest build",
     "dev": "nest start --watch --exec \"node --env-file=.env\"",
@@ -17,7 +22,8 @@
     "qr:keygen": "tsx scripts/generate-qr-key.ts",
     "dev:worker": "nest start --watch --path tsconfig.worker.json --entryFile worker --exec \"node --env-file=.env\"",
     "start:worker": "node dist/worker.js",
-    "ledger:backfill": "tsx --env-file=.env scripts/backfill-ledger.ts"
+    "ledger:backfill": "tsx --env-file=.env scripts/backfill-ledger.ts",
+    "db:seed:demo": "nest build && node --env-file=.env dist/seed/demo-seed.js"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.24",

@@ -10,5 +10,6 @@ import { TransfersService } from "./transfers.service";
   imports: [BatchesModule, LedgerModule],
   controllers: [TransfersController],
   providers: [TransfersRepository, TransfersService, TransferResponsesService],
+  exports: [TransfersService, TransferResponsesService],
 })
 export class TransfersModule {}

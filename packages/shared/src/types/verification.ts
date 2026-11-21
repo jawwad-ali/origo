@@ -44,3 +44,19 @@ export interface PublicKeyDto {
   /** SPKI DER, base64. */
   publicKey: string;
 }
+
+/** A ready-made pack for the public demo page, one per kind of result. */
+export interface DemoSampleDto {
+  key: string;
+  title: string;
+  description: string;
+  expected: VerificationVerdict;
+  publicId: string;
+  verifyUrl: string;
+}
+
+export interface DemoAccountDto {
+  role: string;
+  email: string;
+  organization: string;
+}
