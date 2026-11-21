@@ -1,5 +1,14 @@
 import { z } from "zod";
 
+export const LABEL_EXPORT_RUNNERS = ["queue", "inline"] as const;
+export const LABEL_EXPORT_STORAGES = ["disk", "database"] as const;
+
+/** An optional secret where an empty value (`KEY=` in a .env file) means "not set". */
+const optionalSecret = z.preprocess(
+  (value) => (value === "" ? undefined : value),
+  z.string().min(32).optional(),
+);
+
 const booleanString = z
   .enum(["true", "false"])
   .default("false")
@@ -32,9 +41,18 @@ export const envSchema = z.object({
   /** Short ID printed with each signature so keys can be rotated. */
   QR_SIGNING_KEY_ID: z.string().regex(/^[a-z0-9]{1,8}$/, "Use 1-8 lowercase letters or digits"),
 
-  /** Where finished label PDFs are written. Shared by the API (download) and the worker (write). */
+  /**
+   * How label PDFs are built: "queue" hands them to the BullMQ worker (needs Redis); "inline" builds
+   * them in the API process right after responding, for serverless hosts with no Redis or worker.
+   */
+  LABEL_EXPORT_RUNNER: z.enum(LABEL_EXPORT_RUNNERS).default("queue"),
+  /** Where finished PDFs live: "disk" (LABEL_EXPORT_DIR, shared volume) or "database" (no shared disk). */
+  LABEL_EXPORT_STORAGE: z.enum(LABEL_EXPORT_STORAGES).default("disk"),
+  /** Where finished label PDFs are written with disk storage. Shared by the API and the worker. */
   LABEL_EXPORT_DIR: z.string().min(1).default("./var/label-exports"),
   LABEL_EXPORT_TTL_HOURS: z.coerce.number().int().positive().default(24),
+  /** Bearer secret for scheduled maintenance calls (Vercel Cron). Unset disables those routes. */
+  CRON_SECRET: optionalSecret,
 
   /** Key for hashing scanners' IPs, so repeat scans can be counted without storing any IP. */
   SCAN_HASH_SECRET: z.string().min(32, "SCAN_HASH_SECRET must be at least 32 characters"),
@@ -42,7 +60,7 @@ export const envSchema = z.object({
    * Shared with the web app. Location headers on public verify calls are trusted only when this
    * secret comes with them, so nobody can fake a scan's city by calling the API directly.
    */
-  WEB_PROXY_SECRET: z.string().min(32).optional(),
+  WEB_PROXY_SECRET: optionalSecret,
 
   /** Turns on the public demo endpoints (sample packs). Never enable on a real deployment with real data. */
   DEMO_MODE: booleanString,
@@ -54,8 +72,28 @@ export const envSchema = z.object({
   RUN_WORKER_IN_API: booleanString,
 });
 
-/** Reads RUN_WORKER_IN_API before the Nest container exists, since it decides which modules load. */
-export const readRunWorkerInApi = (env: NodeJS.ProcessEnv = process.env): boolean =>
-  envSchema.shape.RUN_WORKER_IN_API.parse(env.RUN_WORKER_IN_API);
-
 export type Env = z.infer<typeof envSchema>;
+
+export type LabelExportRunner = Env["LABEL_EXPORT_RUNNER"];
+export type LabelExportStorage = Env["LABEL_EXPORT_STORAGE"];
+
+/** Settings that decide which modules load, so they are read before the Nest container exists. */
+export interface BootstrapOptions {
+  /** Consume the job queue inside the API process (RUN_WORKER_IN_API). */
+  embeddedWorker: boolean;
+  labelExports: { runner: LabelExportRunner; storage: LabelExportStorage };
+}
+
+const bootstrapSchema = envSchema
+  .pick({ RUN_WORKER_IN_API: true, LABEL_EXPORT_RUNNER: true, LABEL_EXPORT_STORAGE: true })
+  .refine((env) => !(env.RUN_WORKER_IN_API && env.LABEL_EXPORT_RUNNER === "inline"), {
+    message: "RUN_WORKER_IN_API needs LABEL_EXPORT_RUNNER=queue; the inline runner has no queue to consume.",
+  });
+
+export const readBootstrapOptions = (env: NodeJS.ProcessEnv = process.env): BootstrapOptions => {
+  const parsed = bootstrapSchema.parse(env);
+  return {
+    embeddedWorker: parsed.RUN_WORKER_IN_API,
+    labelExports: { runner: parsed.LABEL_EXPORT_RUNNER, storage: parsed.LABEL_EXPORT_STORAGE },
+  };
+};

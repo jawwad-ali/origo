@@ -1,6 +1,15 @@
 # Deploying Origo
 
-Production runs on three free tiers: **Vercel** (web), an **Oracle Cloud Always Free** ARM VM (API, worker, Redis, Caddy) and **Neon** (Postgres). This guide takes a fresh setup to a live demo. Allow about an hour the first time.
+Two production setups, same code:
+
+| Setup                         | Web    | API                                                 | Needs                          | Use when                                      |
+| ----------------------------- | ------ | --------------------------------------------------- | ------------------------------ | --------------------------------------------- |
+| **A. VM** (sections 1–6)      | Vercel | Oracle Cloud VM: API, worker, Redis, Caddy          | A card-verified Oracle account | You want a long-running API with a real queue |
+| **B. Serverless** (section 7) | Vercel | A second Vercel project (Vercel Function in `sin1`) | Only a Vercel Hobby account    | No card, or you don't want to run a server    |
+
+Both use **Neon** for Postgres. The live portfolio demo runs setup B. The difference is only in how label PDFs are built and stored; see "Label exports run anywhere" in [architecture.md](architecture.md#label-exports-run-anywhere-runners-and-storage).
+
+Setup A takes a fresh setup to a live demo in about an hour the first time.
 
 ```
 Browser ──HTTPS──▶ Vercel (Next.js) ──/api/v1/* rewrite──▶ Caddy ─▶ api ─┐
@@ -109,6 +118,33 @@ Demo visitors change the data as they click around (that's the point). To reset 
 - **Errors:** create a Sentry project and set `SENTRY_DSN` on the API.
 - **Backups:** Neon keeps point-in-time history for the plan's retention window; restore by branching from a past time. Redis only holds queue state, and label PDFs expire after 24 hours, so neither needs backups.
 - **Logs:** `docker compose -f infra/docker-compose.prod.yml logs -f api worker` on the VM. Each line carries the request ID shown in API error responses.
+
+## 7. Setup B: the API on Vercel (no server, no card)
+
+The API runs as one Vercel Function (`apps/api/api/index.js` → `dist/serverless.js`), configured by `apps/api/vercel.json`: built with `nest build`, region `sin1` (next to Neon Singapore), 300 s max duration, every path rewritten to the function, and a daily cron that removes expired PDFs.
+
+1. **Database:** as in section 1, then apply migrations from your machine (the function doesn't run them):
+   ```bash
+   cd apps/api
+   node --env-file=.env.main node_modules/prisma/build/index.js migrate deploy
+   ```
+2. **API project:** import the repo in Vercel again, **Root directory** `apps/api`, framework **Other** (`vercel.json` sets the rest). Environment variables (Production):
+
+   | Variable                                                                                                               | Value                                         |
+   | ---------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+   | `LABEL_EXPORT_RUNNER` / `LABEL_EXPORT_STORAGE`                                                                         | `inline` / `database`                         |
+   | `CRON_SECRET`                                                                                                          | random, 32+ characters (Vercel Cron sends it) |
+   | `TRUST_PROXY_HOPS`                                                                                                     | `1`                                           |
+   | `COOKIE_SECURE`                                                                                                        | `true`                                        |
+   | `WEB_ORIGIN`, `VERIFY_BASE_URL`                                                                                        | the web app's URL, and that URL + `/v`        |
+   | `DATABASE_URL`, `DIRECT_URL`, `JWT_ACCESS_SECRET`, `SCAN_HASH_SECRET`, `WEB_PROXY_SECRET`, `QR_SIGNING_*`, `DEMO_MODE` | as in the table in section 2                  |
+
+   No `REDIS_URL`: the inline runner never connects to Redis.
+
+3. **Web project:** as in section 4, with `API_URL` set to the API project's production domain (for example `https://origo-api-xxxx.vercel.app`). Use the production domain, not a per-deployment URL, which Vercel protects with a login.
+4. **Demo data:** as in section 5.
+
+Trade-offs against setup A: no automatic retries for a failed PDF (the user exports again), the first request after a quiet period takes a second or two longer (cold start), the rate limiter counts per function instance, and expired PDFs are removed daily instead of hourly (downloads past the expiry are refused either way).
 
 ## Not done yet
 

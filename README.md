@@ -9,12 +9,12 @@ Every medicine pack gets a unique digital identity (QR code). Manufacturers, dis
 
 ## Stack
 
-| Part                       | Tech                                                                     |
-| -------------------------- | ------------------------------------------------------------------------ |
-| Web (`apps/web`)           | Next.js 15 (App Router), Tailwind CSS v4, shadcn/ui                      |
-| API (`apps/api`)           | NestJS 11, Prisma 6, PostgreSQL 16, BullMQ + Redis (worker process)      |
-| Shared (`packages/shared`) | Zod schemas and DTO types used by both apps                              |
-| Hosting                    | Vercel (web), Oracle Cloud VM with Docker + Caddy (API), Neon (Postgres) |
+| Part                       | Tech                                                                                                     |
+| -------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Web (`apps/web`)           | Next.js 15 (App Router), Tailwind CSS v4, shadcn/ui                                                      |
+| API (`apps/api`)           | NestJS 11, Prisma 6, PostgreSQL 16, BullMQ + Redis (worker process)                                      |
+| Shared (`packages/shared`) | Zod schemas and DTO types used by both apps                                                              |
+| Hosting                    | Vercel (web and serverless API), Neon (Postgres); a Docker + Caddy VM setup for Oracle Cloud is included |
 
 ## Running locally
 
@@ -71,7 +71,7 @@ Passwords come from `SEED_ADMIN_PASSWORD` and `SEED_DEMO_PASSWORD` in `apps/api/
 
 ## Deploying
 
-See [docs/deployment.md](docs/deployment.md) for the full guide: Neon `main` branch, the Oracle Cloud VM (API, worker, Redis, Caddy with automatic HTTPS), Vercel, demo data and post-launch checks.
+See [docs/deployment.md](docs/deployment.md) for both production setups: the API as a Vercel Function (what the live demo runs, no server or card needed), or an Oracle Cloud VM with the API, worker, Redis and Caddy (automatic HTTPS). It also covers the Neon `main` branch, demo data and post-launch checks.
 
 ```bash
 DEPLOY_HOST=ubuntu@<vm-ip> ./infra/deploy.sh            # build on the VM, migrate, restart, health check

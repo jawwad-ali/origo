@@ -1,5 +1,7 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  // native for local dev and the Docker image; rhel for Vercel Functions (Amazon Linux).
+  binaryTargets = ["native", "debian-openssl-3.0.x", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
@@ -247,11 +249,23 @@ model LabelExport {
   completedAt    DateTime?         @map("completed_at")
   expiresAt      DateTime?         @map("expires_at")
 
-  batch Batch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  batch Batch            @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  file  LabelExportFile?
 
   @@index([batchId, createdAt])
   @@index([status, expiresAt])
   @@map("label_exports")
+}
+
+/// The PDF itself, when LABEL_EXPORT_STORAGE=database (hosts without a shared disk). Removed on expiry.
+model LabelExportFile {
+  exportId  String   @id @map("export_id") @db.Uuid
+  data      Bytes
+  createdAt DateTime @default(now()) @map("created_at")
+
+  export LabelExport @relation(fields: [exportId], references: [id], onDelete: Cascade)
+
+  @@map("label_export_files")
 }
 
 enum TransferStatus {

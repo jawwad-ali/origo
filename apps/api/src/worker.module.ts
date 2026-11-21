@@ -1,8 +1,9 @@
-import { Module } from "@nestjs/common";
+import { type DynamicModule, Module } from "@nestjs/common";
 import { SentryModule } from "@sentry/nestjs/setup";
 import { LoggerModule } from "nestjs-pino";
 import { AppConfigService } from "./config/app-config.service";
 import { AppConfigModule } from "./config/config.module";
+import { type LabelExportStorage } from "./config/env.schema";
 import { buildLoggerParams } from "./logger.config";
 import { LabelExportsWorkerModule } from "./modules/label-exports/worker/label-exports-worker.module";
 import { QrSigningModule } from "./modules/qr-signing/qr-signing.module";
@@ -16,7 +17,10 @@ import { PrismaModule } from "./prisma/prisma.module";
     LoggerModule.forRootAsync({ inject: [AppConfigService], useFactory: buildLoggerParams }),
     PrismaModule,
     QrSigningModule,
-    LabelExportsWorkerModule,
   ],
 })
-export class WorkerModule {}
+export class WorkerModule {
+  static forRoot(storage: LabelExportStorage): DynamicModule {
+    return { module: WorkerModule, imports: [LabelExportsWorkerModule.forRoot(storage)] };
+  }
+}

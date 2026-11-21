@@ -312,6 +312,19 @@ Errors follow RFC 9457 (Problem Details) so every error response has the same sh
 
 Jobs retry three times with exponential backoff; after the last failure the export is marked `FAILED` with a message the user sees. If Redis doesn't answer within 5 seconds when a job is queued, the request returns 503 instead of hanging. A 5,000-label PDF takes about 10 seconds and 14 MB.
 
+### Label exports run anywhere: runners and storage
+
+How a PDF gets built and where it is kept are two small interfaces, picked per deployment by environment variables. The rest of the feature (API, polling, download, expiry) doesn't know which is in use.
+
+| Setting                | Option     | Use it on                     | What happens                                                                                             |
+| ---------------------- | ---------- | ----------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `LABEL_EXPORT_RUNNER`  | `queue`    | VM / Docker (default)         | `LabelExportDispatcher` adds a BullMQ job; the worker builds it with retries                             |
+|                        | `inline`   | Serverless (Vercel Functions) | The API answers `202`, then builds the PDF in the same function (`waitUntil`); no Redis is loaded at all |
+| `LABEL_EXPORT_STORAGE` | `disk`     | VM / Docker (default)         | `LabelStorage` writes to a volume shared by the API and the worker                                       |
+|                        | `database` | Serverless                    | PDF bytes go into `label_export_files`; downloads are streamed in 64 KB chunks                           |
+
+Both runners call the same `LabelExportBuildService`, and both storages go through the same `LabelExportCleanupService` (hourly BullMQ scheduler on the VM, daily Vercel Cron at `GET /api/v1/internal/cron/label-exports-cleanup` with a bearer `CRON_SECRET`). Settings that change which modules load are read before Nest starts (`readBootstrapOptions`), so the inline deployment never opens a Redis connection.
+
 ---
 
 ## 9. Security checklist
@@ -384,10 +397,13 @@ The UI has to look like a real product a pharma company would pay for. That mean
 
 ## 11. Environments and deployment
 
-| Environment | Web        | API + worker               | Database        | Redis                     |
-| ----------- | ---------- | -------------------------- | --------------- | ------------------------- |
-| Local       | `next dev` | `nest start --watch`       | Docker Postgres | Docker Redis              |
-| Production  | Vercel     | Oracle VM (Docker Compose) | Neon            | Redis container on the VM |
+| Environment             | Web        | API + label exports                                | Database           | Redis                     |
+| ----------------------- | ---------- | -------------------------------------------------- | ------------------ | ------------------------- |
+| Local                   | `next dev` | `nest start --watch` + worker                      | Neon `dev` branch  | Docker Redis              |
+| Production (VM)         | Vercel     | Oracle VM (Docker Compose), queue runner, disk     | Neon `main` branch | Redis container on the VM |
+| Production (serverless) | Vercel     | Vercel Function in `sin1`, inline runner, database | Neon `main` branch | none                      |
+
+The live portfolio demo runs the serverless setup (no card-verified VM was available); the VM setup is kept ready in `infra/`. See [deployment.md](deployment.md) for both.
 
 **Web:** Vercel deploys the `main` branch through its built-in GitHub integration.
 

@@ -1,0 +1,13 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "pnpm install --frozen-lockfile",
+  "buildCommand": "cd ../.. && pnpm --filter \"@origo/api...\" build && mkdir -p apps/api/public",
+  "outputDirectory": "public",
+  "regions": ["sin1"],
+  "functions": {
+    "api/index.js": { "maxDuration": 300 }
+  },
+  "rewrites": [{ "source": "/(.*)", "destination": "/api" }],
+  "crons": [{ "path": "/api/v1/internal/cron/label-exports-cleanup", "schedule": "0 3 * * *" }]
+}

@@ -1,8 +1,6 @@
-import { type ReadStream } from "node:fs";
-import { InjectQueue } from "@nestjs/bullmq";
+import { type Readable } from "node:stream";
 import { HttpStatus, Injectable } from "@nestjs/common";
 import { type LabelExportDto } from "@origo/shared";
-import { Queue } from "bullmq";
 import { DomainException, EntityNotFoundException } from "../../common/exceptions/domain.exceptions";
 import { type Principal } from "../../common/types/principal";
 import { type RequestMeta } from "../../common/types/request-meta";
@@ -10,13 +8,13 @@ import { orgIdOf } from "../../common/utils/principal";
 import { AUDIT_ACTIONS, AUDIT_ENTITIES } from "../audit/audit-actions";
 import { AuditService } from "../audit/audit.service";
 import { BatchesService } from "../batches/batches.service";
-import { type BuildLabelsJobData, LABEL_EXPORT_JOBS, LABEL_EXPORT_QUEUE } from "../queue/queue.constants";
+import { LabelExportDispatcher } from "./dispatch/label-export-dispatcher";
 import { toLabelExportDto } from "./label-export.mapper";
 import { LabelExportsRepository } from "./label-exports.repository";
-import { LabelStorageService } from "./label-storage.service";
+import { LabelStorage } from "./storage/label-storage";
 
 export interface LabelFile {
-  stream: ReadStream;
+  stream: Readable;
   fileName: string;
   size: number;
 }
@@ -24,19 +22,6 @@ export interface LabelFile {
 class ExportNotReadyException extends DomainException {
   constructor(detail: string) {
     super(HttpStatus.CONFLICT, "export-not-ready", "Labels aren't ready", detail);
-  }
-}
-
-const ENQUEUE_TIMEOUT_MS = 5_000;
-
-class QueueUnavailableException extends DomainException {
-  constructor() {
-    super(
-      HttpStatus.SERVICE_UNAVAILABLE,
-      "labels-unavailable",
-      "Label service unavailable",
-      "Labels can't be generated right now. Try again in a minute.",
-    );
   }
 }
 
@@ -55,10 +40,10 @@ class ExportExpiredException extends DomainException {
 @Injectable()
 export class LabelExportsService {
   constructor(
-    @InjectQueue(LABEL_EXPORT_QUEUE) private readonly queue: Queue<BuildLabelsJobData>,
+    private readonly dispatcher: LabelExportDispatcher,
     private readonly exports: LabelExportsRepository,
     private readonly batches: BatchesService,
-    private readonly storage: LabelStorageService,
+    private readonly storage: LabelStorage,
     private readonly audit: AuditService,
   ) {}
 
@@ -75,7 +60,7 @@ export class LabelExportsService {
       requestedById: principal.userId,
       labelCount: batch.packCount,
     });
-    await this.enqueue(record.id);
+    await this.dispatcher.dispatch(record.id);
     await this.audit.record({
       action: AUDIT_ACTIONS.LABEL_EXPORT_REQUESTED,
       entityType: AUDIT_ENTITIES.LABEL_EXPORT,
@@ -86,25 +71,6 @@ export class LabelExportsService {
       meta,
     });
     return toLabelExportDto(record);
-  }
-
-  /** Queues the build. If Redis doesn't answer in time, fail fast instead of hanging the request. */
-  private async enqueue(exportId: string): Promise<void> {
-    let timer: NodeJS.Timeout | undefined;
-    const timeout = new Promise<never>((_, reject) => {
-      timer = setTimeout(() => reject(new Error("queue timeout")), ENQUEUE_TIMEOUT_MS);
-    });
-    try {
-      await Promise.race([
-        this.queue.add(LABEL_EXPORT_JOBS.build, { exportId }, { jobId: exportId }),
-        timeout,
-      ]);
-    } catch {
-      await this.exports.markFailed(exportId, "The label service is unavailable. Try again in a minute.");
-      throw new QueueUnavailableException();
-    } finally {
-      clearTimeout(timer);
-    }
   }
 
   async get(principal: Principal, id: string): Promise<LabelExportDto> {
@@ -128,20 +94,26 @@ export class LabelExportsService {
       throw new ExportNotReadyException("The PDF is still being built. Try again shortly.");
     if (!record.filePath || (record.expiresAt && record.expiresAt < new Date()))
       throw new ExportExpiredException();
-    if (!(await this.storage.exists(record.filePath))) throw new ExportExpiredException();
+    const file = await this.storage.open(record.filePath);
+    if (!file) throw new ExportExpiredException();
 
-    await this.audit.record({
-      action: AUDIT_ACTIONS.LABEL_EXPORT_DOWNLOADED,
-      entityType: AUDIT_ENTITIES.LABEL_EXPORT,
-      entityId: record.id,
-      actorUserId: principal.userId,
-      actorOrgId: orgId,
-      meta,
-    });
+    try {
+      await this.audit.record({
+        action: AUDIT_ACTIONS.LABEL_EXPORT_DOWNLOADED,
+        entityType: AUDIT_ENTITIES.LABEL_EXPORT,
+        entityId: record.id,
+        actorUserId: principal.userId,
+        actorOrgId: orgId,
+        meta,
+      });
+    } catch (error) {
+      file.stream.destroy();
+      throw error;
+    }
     return {
-      stream: this.storage.openRead(record.filePath),
+      stream: file.stream,
       fileName: `origo-labels-${record.batch.batchNumber.replace(/[^A-Za-z0-9-]/g, "_")}.pdf`,
-      size: await this.storage.sizeOf(record.filePath),
+      size: file.size,
     };
   }
 }

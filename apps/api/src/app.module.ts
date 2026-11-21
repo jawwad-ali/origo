@@ -4,6 +4,7 @@ import { SentryModule } from "@sentry/nestjs/setup";
 import { LoggerModule } from "nestjs-pino";
 import { AppConfigService } from "./config/app-config.service";
 import { AppConfigModule } from "./config/config.module";
+import { type BootstrapOptions } from "./config/env.schema";
 import { buildLoggerParams } from "./logger.config";
 import { AdminModule } from "./modules/admin/admin.module";
 import { AuditModule } from "./modules/audit/audit.module";
@@ -23,11 +24,6 @@ import { PrismaModule } from "./prisma/prisma.module";
 
 const DEFAULT_RATE_LIMIT = { ttl: 60_000, limit: 120 };
 
-export interface AppModuleOptions {
-  /** Also consume the job queues in this process (see RUN_WORKER_IN_API). */
-  embeddedWorker: boolean;
-}
-
 @Module({
   imports: [
     SentryModule.forRoot(),
@@ -41,7 +37,6 @@ export interface AppModuleOptions {
     AdminModule,
     ProductsModule,
     BatchesModule,
-    LabelExportsModule,
     InventoryModule,
     TransfersModule,
     PackHistoryModule,
@@ -51,7 +46,14 @@ export interface AppModuleOptions {
   ],
 })
 export class AppModule {
-  static forRoot({ embeddedWorker }: AppModuleOptions): DynamicModule {
-    return { module: AppModule, imports: embeddedWorker ? [LabelExportsWorkerModule] : [] };
+  /** Modules whose wiring depends on deployment settings (see BootstrapOptions). */
+  static forRoot({ embeddedWorker, labelExports }: BootstrapOptions): DynamicModule {
+    return {
+      module: AppModule,
+      imports: [
+        LabelExportsModule.forRoot(labelExports),
+        ...(embeddedWorker ? [LabelExportsWorkerModule.forRoot(labelExports.storage)] : []),
+      ],
+    };
   }
 }
